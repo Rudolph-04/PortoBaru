@@ -10,6 +10,11 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="Aghasha Rudolph — Information Systems Portfolio">
   <meta property="og:description" content="System analysis and app feature design. Projects built with Laravel, Flutter, and React.">
+  <meta property="og:url" content="https://rudolph-04.github.io/PortoBaru/">
+  <meta property="og:image" content="https://rudolph-04.github.io/PortoBaru/assets/img/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
 
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 
@@ -32,6 +37,8 @@
       var skip = location.hash.length > 1 ||
                  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       root.classList.add('js', skip ? 'intro-done' : 'intro-active');
+      // Pengunjung yang pernah mematikan efek visual: langsung matikan dari awal
+      try { if (localStorage.getItem('fx') === 'off') root.classList.add('fx-off'); } catch (e) {}
     })();
   </script>
 </head>
@@ -81,6 +88,9 @@
           <li><a href="#projects"><i>03</i>Projects</a></li>
           <li><a href="#skills"><i>04</i>Skills</a></li>
           <li><a href="#contact"><i>05</i>Contact</a></li>
+          <li class="fx-item">
+            <button class="fx-toggle" id="fx-toggle" type="button" aria-pressed="true" title="Turn visual effects on or off">FX <span>on</span></button>
+          </li>
         </ul>
       </nav>
     </div>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Signal lost</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+  <!-- Gaya ditulis langsung di sini supaya tetap tampil benar di alamat apa pun -->
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background-color: #06060b;
+      background-image:
+        linear-gradient(rgba(0, 240, 255, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, .035) 1px, transparent 1px);
+      background-size: 48px 48px;
+      color: #e8f1ff;
+      font-family: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    }
+    main { max-width: 560px; }
+    .code {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: .85rem;
+      letter-spacing: .12em;
+      color: #ff2a6d;
+    }
+    h1 {
+      margin: 14px 0 18px;
+      font-size: clamp(3.2rem, 14vw, 6rem);
+      line-height: .9;
+      text-transform: uppercase;
+    }
+    p { color: #9aa3bf; line-height: 1.6; }
+    a {
+      display: inline-block;
+      margin-top: 32px;
+      padding: 14px 24px;
+      background: #00f0ff;
+      color: #001417;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-weight: 700;
+      font-size: .9rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    }
+    a:hover { background: #7ff8ff; }
+    a:focus-visible { outline: 2px solid #ff2a6d; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="code">ERROR 404 // SIGNAL LOST</p>
+    <h1>Page not found</h1>
+    <p>The page you were looking for doesn't exist or has moved.</p>
+    <a id="home" href="/">Back to portfolio</a>
+  </main>
+  <script>
+    // Di GitHub Pages, portfolio ada di /<nama-repo>/. Arahkan tombol ke sana.
+    var seg = location.pathname.split('/')[1];
+    if (location.hostname.endsWith('github.io') && seg) {
+      document.getElementById('home').href = '/' + seg + '/';
+    }
+  </script>
+</body>
+</html>

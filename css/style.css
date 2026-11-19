@@ -1456,3 +1456,109 @@ a:hover .i-arrow {
     transform: none;
   }
 }
+
+/* Efek kilat listrik di pinggir layar saat kartu "overload" (dibuat oleh lanyard.js) */
+.fx-edge {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 450;
+  pointer-events: none;
+}
+
+/* ---------- Tambahan: decode judul, data mengalir, tombol FX, overload ---------- */
+
+/* Huruf acak saat judul section "di-decode" */
+.dud {
+  color: var(--magenta);
+}
+
+/* Titik data yang mengalir dari aktor ke modul di system map */
+.sysmap-link::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: packet 1.8s linear infinite;
+}
+
+.project:hover .sysmap-link::before {
+  animation-duration: .9s;
+}
+
+.project:hover .modules .node {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, .25);
+}
+
+@keyframes packet {
+  0%   { transform: translateY(0);    opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(34px); opacity: 0; }
+}
+
+/* Tombol FX on/off di navigasi */
+.site-nav li.fx-item {
+  display: flex;
+  align-items: center;
+}
+
+.fx-toggle {
+  margin-left: 10px;
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+
+.fx-toggle span {
+  color: var(--cyan);
+}
+
+.fx-toggle[aria-pressed="false"] span {
+  color: var(--dim);
+}
+
+.fx-toggle:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+@media (max-width: 760px) {
+  .fx-toggle {
+    margin: 14px 0 4px;
+  }
+}
+
+/* Mode FX mati: buang scanline, glitch, dan animasi dekoratif */
+.fx-off body::after,
+.fx-off .glitch::before,
+.fx-off .glitch::after,
+.fx-off .sysmap-link::before {
+  display: none;
+}
+
+/* Saat kartu overload, nama di hero ikut glitch */
+.is-overload .hero h1 .glitch::before,
+.is-overload .hero h1 .glitch::after {
+  animation: glitch-burst .24s steps(1) infinite;
+}
+
+@keyframes glitch-burst {
+  0%   { opacity: .9; transform: translate(-5px, 1px);  clip-path: inset(12% 0 50% 0); }
+  33%  { opacity: .9; transform: translate(4px, -1px);  clip-path: inset(55% 0 10% 0); }
+  66%  { opacity: .9; transform: translate(-2px, 0);    clip-path: inset(30% 0 35% 0); }
+  100% { opacity: .9; transform: translate(3px, 1px);   clip-path: inset(70% 0 5% 0); }
+}

@@ -208,6 +208,27 @@
     }
   });
 
+  /* 3b. TOMBOL FX ON/OFF ------------------------------------------------
+     Mematikan glitch, scanline, dan efek overload kartu. Pilihan disimpan
+     di browser pengunjung, jadi tetap mati saat halaman dibuka lagi. */
+  var fxBtn = document.getElementById('fx-toggle');
+
+  function renderFx() {
+    var off = root.classList.contains('fx-off');
+    fxBtn.setAttribute('aria-pressed', String(!off));
+    fxBtn.querySelector('span').textContent = off ? 'off' : 'on';
+  }
+
+  if (fxBtn) {
+    renderFx();
+    fxBtn.addEventListener('click', function () {
+      var off = !root.classList.contains('fx-off');
+      root.classList.toggle('fx-off', off);
+      try { localStorage.setItem('fx', off ? 'off' : 'on'); } catch (e) {}
+      renderFx();
+    });
+  }
+
   // Browser lama tanpa IntersectionObserver: tampilkan semua konten apa adanya
   if (!('IntersectionObserver' in window)) {
     document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-visible'); });
@@ -236,10 +257,64 @@
   });
 
   /* 5. REVEAL SAAT DI-SCROLL -------------------------------------------- */
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var SCRAMBLE_CHARS = '!<>-_\\/[]{}=+*^?#01';
+
+  // Efek "decode": huruf acak berganti-ganti sebelum jadi teks asli.
+  // Dihitung pakai waktu (bukan jumlah frame), jadi selalu selesai < 1 detik
+  // walaupun HP-nya lambat.
+  function scramble(el) {
+    if (!el || reduceMotion || root.classList.contains('fx-off') || el.dataset.scrambled) return;
+    el.dataset.scrambled = '1';
+    var finalText = el.textContent;
+    var queue = [];
+    for (var i = 0; i < finalText.length; i++) {
+      var start = Math.random() * 250;                  // mulai acak 0-250ms
+      queue.push({ to: finalText[i], start: start, end: start + 200 + Math.random() * 350 });
+    }
+    el.setAttribute('aria-label', finalText); // pembaca layar tetap baca teks asli
+    var t0 = performance.now();
+    var lastSwap = 0;
+
+    (function update(now) {
+      var elapsed = (now || performance.now()) - t0;
+      // Ganti huruf acak tiap ~50ms supaya tidak terlalu berkedip
+      var swap = elapsed - lastSwap > 50;
+      if (swap) lastSwap = elapsed;
+
+      var frag = document.createDocumentFragment();
+      var done = 0;
+      for (var j = 0; j < queue.length; j++) {
+        var q = queue[j];
+        if (q.to === ' ' || elapsed >= q.end) {
+          frag.appendChild(document.createTextNode(q.to));
+          done++;
+          continue;
+        }
+        if (swap || !q.ch) q.ch = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        var dud = document.createElement('span');
+        dud.className = 'dud';
+        dud.textContent = elapsed >= q.start ? q.ch : q.to;
+        if (elapsed < q.start) dud.style.opacity = '0';
+        frag.appendChild(dud);
+      }
+      el.textContent = '';
+      el.appendChild(frag);
+
+      if (done < queue.length) {
+        requestAnimationFrame(update);
+      } else {
+        el.textContent = finalText;
+        el.removeAttribute('aria-label');
+      }
+    })();
+  }
+
   var revealObserver = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (entry.isIntersecting) {
         entry.target.classList.add('is-visible');
+        if (entry.target.classList.contains('section-head')) scramble(entry.target.querySelector('h2'));
         revealObserver.unobserve(entry.target);
       }
     });
