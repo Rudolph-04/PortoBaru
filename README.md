@@ -1,38 +1,23 @@
-# Portfolio — Aghasha Rudolph
+# Porto
 
-Website portfolio statis (HTML, CSS, JavaScript murni, tanpa framework dan tanpa build step).
+Portfolio Aghasha Rudolph, mahasiswa Sistem Informasi.
 
-## Struktur folder
+Live: https://rudolph-04.github.io/PortoBaru/
 
-```
-index.html          → semua konten halaman (teks, project, link)
-css/style.css       → tampilan; warna & font diatur di bagian TOKEN paling atas
-js/main.js          → menu HP, link nav aktif, animasi scroll, bintang jatuh
-assets/img/         → foto (sudah dikompres) + favicon
-```
+## Isi
 
-## Cara menjalankan di laptop
+- Opening ala boot screen
+- Kartu ID 3D di lanyard, bisa di-drag dan diputar
+- Project: SIP Posyandu, PlayBook, SIJAPAM, Juragan Tahu
 
-Buka `index.html` langsung di browser, atau pakai server lokal biar sama persis kayak online:
+## Jalanin di lokal
 
 ```bash
 python -m http.server 8000
 ```
 
-Lalu buka `http://localhost:8000`.
+Buka `http://localhost:8000`. Kartu 3D butuh server lokal; kalau `index.html` dibuka langsung, yang muncul versi statis.
 
-## Cara edit yang paling sering
+## Tech
 
-- **Ganti warna aksen**: ubah `--accent` dan `--accent-hover` di `css/style.css`.
-- **Tambah project**: di `index.html`, copy satu blok `<article class="project">…</article>`,
-  lalu ganti judul, deskripsi, poin fitur, stack, link GitHub, dan isi `sysmap`
-  (baris `actors` = siapa yang pakai sistem, baris `modules` = fitur/modul).
-- **Ganti foto**: taruh file baru di `assets/img/`. Usahakan lebar maksimal ±1000px
-  dan ukuran di bawah 200 KB supaya halaman tetap cepat.
-
-## Deploy ke GitHub Pages
-
-1. Push ke branch `main`.
-2. Di GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**,
-   pilih `main` dan folder `/ (root)`.
-3. Tunggu 1–2 menit, website muncul di `https://<username>.github.io/<nama-repo>/`.
+HTML, CSS, JavaScript, [three.js](https://threejs.org) r170 (lisensi MIT, ada di `js/vendor`).

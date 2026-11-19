@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aghasha Rudolph — Information Systems Portfolio</title>
   <meta name="description" content="Aghasha Rudolph, Information Systems student focused on system analysis and app feature design. Projects built with Laravel, Flutter, and React.">
-  <meta name="theme-color" content="#0a0a0a">
+  <meta name="theme-color" content="#06060b">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Aghasha Rudolph — Information Systems Portfolio">
@@ -15,20 +15,60 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Geist:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- Tandai bahwa JS aktif, supaya animasi reveal hanya jalan kalau JS ada -->
-  <script>document.documentElement.classList.add('js');</script>
+  <!--
+    Dijalankan paling awal supaya tidak ada "kedipan":
+    - kelas "js"           : JavaScript aktif
+    - kelas "intro-active" : tampilkan opening
+    - kelas "intro-done"   : lewati opening (kalau link langsung ke section, misal #projects,
+                             atau pengguna mematikan animasi di sistem operasinya)
+  -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var skip = location.hash.length > 1 ||
+                 window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      root.classList.add('js', skip ? 'intro-done' : 'intro-active');
+    })();
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
+  <!-- ============ OPENING ============ -->
+  <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+    <button class="intro-skip" id="intro-skip" type="button">Skip intro &gt;&gt;</button>
+
+    <div class="intro-inner">
+      <pre class="intro-log" id="intro-log" aria-hidden="true"></pre>
+
+      <div class="intro-id" id="intro-id">
+        <p class="intro-title" id="intro-title">
+          <span class="glitch" data-text="AGHASHA">AGHASHA</span>
+          <span class="glitch" data-text="RUDOLPH">RUDOLPH</span>
+        </p>
+        <p class="intro-sub">Information Systems // Portfolio</p>
+      </div>
+
+      <div class="intro-progress" aria-hidden="true">
+        <div class="intro-bar"><span id="intro-bar-fill"></span></div>
+        <span class="intro-pct" id="intro-pct">0%</span>
+      </div>
+
+      <button class="intro-enter" id="intro-enter" type="button">[ Enter portfolio ]</button>
+      <p class="intro-hint" aria-hidden="true">or press Enter</p>
+    </div>
+  </div>
+
   <!-- ============ HEADER ============ -->
   <header class="site-header" id="top">
     <div class="container header-inner">
-      <a class="logo" href="#top" aria-label="Aghasha Rudolph, back to top">A<span>.</span>R</a>
+      <a class="logo" href="#top" aria-label="Aghasha Rudolph, back to top">
+        A<span>.</span>R<small>Systems</small>
+      </a>
 
       <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
         <span></span><span></span><span></span>
@@ -36,25 +76,45 @@
 
       <nav class="site-nav" id="site-nav" aria-label="Main">
         <ul>
-          <li><a href="#about">About</a></li>
-          <li><a href="#process">Process</a></li>
-          <li><a href="#projects">Projects</a></li>
-          <li><a href="#skills">Skills</a></li>
-          <li><a href="#contact">Contact</a></li>
+          <li><a href="#about"><i>01</i>About</a></li>
+          <li><a href="#process"><i>02</i>Process</a></li>
+          <li><a href="#projects"><i>03</i>Projects</a></li>
+          <li><a href="#skills"><i>04</i>Skills</a></li>
+          <li><a href="#contact"><i>05</i>Contact</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <main id="main">
+  <main id="main" tabindex="-1">
     <!-- ============ HERO ============ -->
     <section class="hero" aria-labelledby="hero-title">
-      <div class="sky" aria-hidden="true"></div>
+      <!-- Panggung kartu ID 3D. Isinya digambar oleh js/lanyard.js -->
+      <div class="badge-stage">
+        <canvas id="badge-canvas" tabindex="0" role="img"
+                aria-label="Interactive 3D ID card of Aghasha Rudolph hanging on a lanyard. Drag it, or use the arrow keys, to swing and flip it."></canvas>
+
+        <!-- Cadangan kalau WebGL tidak tersedia: kartu statis biasa -->
+        <div class="badge-fallback" aria-hidden="true">
+          <div class="fallback-card">
+            <p class="fallback-head">A.R SYSTEMS <span>ID // NO.001</span></p>
+            <img src="assets/img/profile.jpg" width="800" height="800" alt="">
+            <p class="fallback-name">Aghasha Rudolph</p>
+            <p class="fallback-type">[ System analyst / App builder ]</p>
+          </div>
+        </div>
+
+        <p class="badge-hint" aria-hidden="true">[ Drag the card ]</p>
+        <span class="badge-ruler" aria-hidden="true"></span>
+      </div>
 
       <div class="container hero-inner">
         <div class="hero-text">
-          <p class="eyebrow">// Information Systems · Smart Application</p>
-          <h1 id="hero-title">Aghasha<br>Rudolph</h1>
+          <p class="eyebrow"><span class="dot"></span>Status: online // Information Systems</p>
+          <h1 id="hero-title">
+            <span class="glitch" data-text="AGHASHA">AGHASHA</span>
+            <span class="glitch" data-text="RUDOLPH">RUDOLPH</span>
+          </h1>
           <p class="hero-lead">
             I study how people actually work, then design the system features
             that take the busywork off their hands.
@@ -63,6 +123,13 @@
             Information Systems student focused on system analysis, diagrams,
             and app feature design. I build with Laravel, Flutter, and React.
           </p>
+
+          <ul class="hud">
+            <li><span>Class</span>System analyst</li>
+            <li><span>Level</span>Semester 06</li>
+            <li><span>Track</span>Smart Application</li>
+          </ul>
+
           <div class="hero-actions">
             <a class="btn btn-primary" href="#projects">View projects</a>
             <a class="btn btn-ghost" href="https://github.com/Rudolph-04" target="_blank" rel="noopener">
@@ -71,23 +138,14 @@
             </a>
           </div>
         </div>
-
-        <figure class="hero-photo">
-          <img src="assets/img/profile.jpg" width="800" height="800"
-               alt="Aghasha Rudolph seen from behind, standing in a doorway covered in graffiti">
-        </figure>
       </div>
-
-      <a class="scroll-cue" href="#about" aria-label="Scroll to About">
-        <span></span>
-      </a>
     </section>
 
     <!-- ============ ABOUT ============ -->
     <section class="section" id="about" aria-labelledby="about-title">
       <div class="container">
         <header class="section-head reveal">
-          <span class="section-num">01</span>
+          <span class="section-num">// 01</span>
           <h2 id="about-title">About</h2>
         </header>
 
@@ -130,28 +188,28 @@
     <section class="section section-alt" id="process" aria-labelledby="process-title">
       <div class="container">
         <header class="section-head reveal">
-          <span class="section-num">02</span>
+          <span class="section-num">// 02</span>
           <h2 id="process-title">How I work</h2>
           <p class="section-intro">Good software starts with understanding the job it replaces.</p>
         </header>
 
         <ol class="steps">
-          <li class="step reveal">
+          <li class="step panel reveal">
             <span class="step-num">01</span>
             <h3>Observe</h3>
             <p>Talk to the people doing the work and look at how it runs today: paper forms, spreadsheets, chat groups.</p>
           </li>
-          <li class="step reveal">
+          <li class="step panel reveal">
             <span class="step-num">02</span>
             <h3>Model</h3>
             <p>Turn the process into use case, activity, and ER diagrams so everyone agrees on what the system must do.</p>
           </li>
-          <li class="step reveal">
+          <li class="step panel reveal">
             <span class="step-num">03</span>
             <h3>Design</h3>
             <p>Define user roles, features, and screens. Decide what to automate and what stays manual.</p>
           </li>
-          <li class="step reveal">
+          <li class="step panel reveal">
             <span class="step-num">04</span>
             <h3>Build &amp; test</h3>
             <p>Ship a working version, run it against real data, and fix what breaks.</p>
@@ -164,7 +222,7 @@
     <section class="section" id="projects" aria-labelledby="projects-title">
       <div class="container">
         <header class="section-head reveal">
-          <span class="section-num">03</span>
+          <span class="section-num">// 03</span>
           <h2 id="projects-title">Projects</h2>
           <p class="section-intro">Each card shows the system map: who uses it, and which modules they touch.</p>
         </header>
@@ -172,9 +230,9 @@
         <div class="projects">
 
           <!-- Project: SIP Posyandu -->
-          <article class="project reveal">
+          <article class="project panel reveal">
             <div class="project-body">
-              <p class="project-meta">2026 · Web app</p>
+              <p class="project-meta">File_01 // 2026 // Web app</p>
               <h3>SIP Posyandu</h3>
               <p class="project-desc">
                 A web system for recording child health data at a posyandu (community
@@ -193,7 +251,7 @@
             </div>
 
             <figure class="sysmap" aria-label="System map: Admin, Kader, and Parent use the Child data, Immunization, and Weighing modules">
-              <figcaption>System map</figcaption>
+              <figcaption>Sys.map</figcaption>
               <div class="sysmap-row actors">
                 <span class="node">Admin</span><span class="node">Kader</span><span class="node">Orang tua</span>
               </div>
@@ -205,9 +263,9 @@
           </article>
 
           <!-- Project: PlayBook -->
-          <article class="project reveal">
+          <article class="project panel reveal">
             <div class="project-body">
-              <p class="project-meta">2026 · Mobile app + REST API</p>
+              <p class="project-meta">File_02 // 2026 // Mobile app + REST API</p>
               <h3>PlayBook</h3>
               <p class="project-desc">
                 A PlayStation rental app. Customers book a console to play on-site or take
@@ -226,7 +284,7 @@
             </div>
 
             <figure class="sysmap" aria-label="System map: Admin and Customer use the Units, Packages, Rentals, Payments, Fines, and Reports modules">
-              <figcaption>System map</figcaption>
+              <figcaption>Sys.map</figcaption>
               <div class="sysmap-row actors">
                 <span class="node">Admin</span><span class="node">Customer</span>
               </div>
@@ -239,9 +297,9 @@
           </article>
 
           <!-- Project: SIJAPAM -->
-          <article class="project reveal">
+          <article class="project panel reveal">
             <div class="project-body">
-              <p class="project-meta">2025 · Web app</p>
+              <p class="project-meta">File_03 // 2025 // Web app</p>
               <h3>SIJAPAM</h3>
               <p class="project-desc">
                 Sistem Informasi Penjualan Jajanan Amel: sales and stock tracking for a
@@ -260,7 +318,7 @@
             </div>
 
             <figure class="sysmap" aria-label="System map: Admin uses the Products, Orders, Customers, and Reports modules, with Gemini AI connected to Products">
-              <figcaption>System map</figcaption>
+              <figcaption>Sys.map</figcaption>
               <div class="sysmap-row actors">
                 <span class="node">Admin</span><span class="node node-ext">Gemini AI</span>
               </div>
@@ -273,9 +331,9 @@
           </article>
 
           <!-- Project: Juragan Tahu -->
-          <article class="project reveal">
+          <article class="project panel reveal">
             <div class="project-body">
-              <p class="project-meta">2026 · Roblox game · <span class="wip">In progress</span></p>
+              <p class="project-meta">File_04 // 2026 // Roblox game // <span class="wip">In progress</span></p>
               <h3>Juragan Tahu</h3>
               <p class="project-desc">
                 A Roblox game about running a fried-tofu stall, from one cart at the market
@@ -294,7 +352,7 @@
             </div>
 
             <figure class="sysmap" aria-label="System map: Player and NPC customers interact with the Frying, Queue, Vehicle, and Leaderstats systems">
-              <figcaption>System map</figcaption>
+              <figcaption>Sys.map</figcaption>
               <div class="sysmap-row actors">
                 <span class="node">Player</span><span class="node">NPC customer</span>
               </div>
@@ -310,7 +368,7 @@
 
         <p class="projects-more reveal">
           More experiments and coursework on
-          <a href="https://github.com/Rudolph-04" target="_blank" rel="noopener">github.com/Rudolph-04</a>.
+          <a href="https://github.com/Rudolph-04" target="_blank" rel="noopener">github.com/Rudolph-04</a>
         </p>
       </div>
     </section>
@@ -319,13 +377,13 @@
     <section class="section section-alt" id="skills" aria-labelledby="skills-title">
       <div class="container">
         <header class="section-head reveal">
-          <span class="section-num">04</span>
+          <span class="section-num">// 04</span>
           <h2 id="skills-title">Skills</h2>
           <p class="section-intro">What I use, grouped by where it fits in a project.</p>
         </header>
 
         <div class="skills">
-          <div class="skill-group reveal">
+          <div class="skill-group panel reveal">
             <h3>Analysis &amp; design</h3>
             <ul>
               <li>System requirements analysis</li>
@@ -335,7 +393,7 @@
               <li>UI flow &amp; wireframes</li>
             </ul>
           </div>
-          <div class="skill-group reveal">
+          <div class="skill-group panel reveal">
             <h3>Build</h3>
             <ul>
               <li>HTML, CSS, JavaScript</li>
@@ -345,7 +403,7 @@
               <li>Python (basics), Luau</li>
             </ul>
           </div>
-          <div class="skill-group reveal">
+          <div class="skill-group panel reveal">
             <h3>Data &amp; tools</h3>
             <ul>
               <li>MySQL &amp; SQL queries</li>
@@ -363,7 +421,7 @@
     <section class="section contact" id="contact" aria-labelledby="contact-title">
       <div class="container">
         <header class="section-head reveal">
-          <span class="section-num">05</span>
+          <span class="section-num">// 05</span>
           <h2 id="contact-title">Let's build something useful</h2>
           <p class="section-intro">
             Open to internships, freelance work, and collaboration on information-system
@@ -412,12 +470,13 @@
   <!-- ============ FOOTER ============ -->
   <footer class="site-footer">
     <div class="container footer-inner">
-      <p>&copy; <span id="year">2026</span> Aghasha Rudolph</p>
-      <p class="muted">Built with HTML, CSS &amp; JavaScript</p>
+      <p>&copy; <span id="year">2026</span> Aghasha Rudolph // A.R Systems</p>
+      <p class="muted">Built with HTML, CSS, JavaScript &amp; three.js</p>
       <a class="to-top" href="#top">Back to top</a>
     </div>
   </footer>
 
-  <script src="js/main.js"></script>
+  <script src="js/main.js" defer></script>
+  <script type="module" src="js/lanyard.js"></script>
 </body>
 </html>
