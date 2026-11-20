@@ -35,6 +35,8 @@ const SEG_LEN = 0.23;           // panjang tiap ruas
 const GRAVITY = -16;
 const STEP = 1 / 120;           // fisika dihitung 120x per detik
 const ITERATIONS = 12;          // makin banyak = tali makin kaku & stabil
+const TWIST_STIFFNESS = 6;      // seberapa kuat tali yang terpuntir menarik kartu balik
+const TWIST_DAMPING = 0.012;    // redaman putaran, supaya akhirnya berhenti
 const STRAP_W = 0.2;            // lebar tali
 const STRAP_REPEAT = STRAP_W * 4; // panjang satu ulangan motif tali
 
@@ -60,7 +62,8 @@ const MONO_FONT = '"JetBrains Mono", Consolas, monospace';
 /* ---------- Shader glitch untuk foto di kartu ----------
    Shader = program kecil yang jalan di GPU untuk tiap piksel.
    uGlitch (0..1) mengatur seberapa parah efeknya:
-   0.05 = tenang, 0.4 = glitch kecil, 1 = overload (merah + kilat listrik). */
+   0.05 = tenang, 0.4 = glitch kecil, 1 = error berat (datamosh, noise, merah).
+   uError = 1 selama frame rusak sesaat (diatur JS, maksimal 2x per error). */
 const GLITCH_VERTEX = /* glsl */ `
   varying vec2 vUv;
   void main() {
@@ -73,34 +76,12 @@ const GLITCH_FRAGMENT = /* glsl */ `
   uniform sampler2D uTex;
   uniform float uTime;
   uniform float uGlitch;
+  uniform float uError;
   uniform float uSeed;
   varying vec2 vUv;
 
   float hash(float n) { return fract(sin(n) * 43758.5453123); }
   float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
-
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = hash2(i);
-    float b = hash2(i + vec2(1.0, 0.0));
-    float c = hash2(i + vec2(0.0, 1.0));
-    float d = hash2(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-  }
-
-  // Satu sambaran listrik vertikal yang zig-zag
-  float bolt(vec2 uv, float seed) {
-    float x0 = 0.15 + 0.7 * hash(seed);
-    float y0 = 0.05 + 0.4 * hash(seed + 1.0);
-    float y1 = y0 + 0.35 + 0.45 * hash(seed + 2.0);
-    float n = (noise(vec2(uv.y * 9.0, seed * 7.0)) - 0.5) * 0.22
-            + (noise(vec2(uv.y * 34.0, seed * 13.0)) - 0.5) * 0.06;
-    float d = abs(uv.x - x0 - n);
-    float mask = smoothstep(y0, y0 + 0.04, uv.y) * (1.0 - smoothstep(y1 - 0.04, y1, uv.y));
-    return mask * 0.0022 / (d + 0.0015);
-  }
 
   void main() {
     // Bagian di luar bingkai miring dibuang supaya bentuk sudutnya tetap
@@ -110,47 +91,56 @@ const GLITCH_FRAGMENT = /* glsl */ `
     float t = floor(uTime * 24.0) + uSeed; // pola acak berganti 24x per detik
     vec2 uv = vUv;
 
-    // 1. Irisan horizontal yang bergeser
+    // 1. Irisan horizontal yang bergeser (sinyal gambar "robek")
     float band = floor(uv.y * 28.0);
     float on = step(1.0 - 0.5 * g, hash2(vec2(band * 1.7, t)));
     uv.x += (hash2(vec2(band, t)) - 0.5) * 0.12 * g * on;
 
-    // 2. Robekan blok besar saat overload
-    float row = floor(uv.y * 6.0);
-    float tear = step(0.6, g) * step(0.82, hash2(vec2(row, floor(t * 0.5))));
-    uv.x += (hash2(vec2(row, t)) - 0.5) * 0.25 * g * tear;
+    // 2. Datamosh: blok gambar yang "macet", pikselnya molor ke samping
+    vec2 bsize = vec2(1.0 / 12.0, 1.0 / 10.0);
+    vec2 bid = floor(vUv / bsize);
+    float mosh = step(0.5, g) * step(1.0 - 0.2 * g, hash2(bid + floor(t * 0.5)));
+    vec2 borg = bid * bsize;
+    vec2 smear = vec2(borg.x + (uv.x - borg.x) * 0.08 + hash2(bid + 3.0) * 0.06, uv.y);
+    uv = mix(uv, smear, mosh);
 
-    // 3. Warna RGB pecah
-    float split = 0.002 + 0.025 * g;
+    // 3. Warna RGB pecah + bayangan ganda (ghosting)
+    float split = 0.002 + 0.02 * g;
     vec3 col = vec3(
       texture2D(uTex, uv + vec2(split, 0.0)).r,
       texture2D(uTex, uv).g,
-      texture2D(uTex, uv - vec2(split, split * 0.3)).b
+      texture2D(uTex, uv - vec2(split, 0.0)).b
     );
+    vec3 ghost = texture2D(uTex, uv + vec2(0.04 * g, 0.0)).rgb;
+    col = mix(col, max(col, ghost * 0.7), 0.4 * g);
 
-    // 4. Blok noise cyan / magenta
-    vec2 blk = floor(vUv * vec2(18.0, 24.0));
-    float showBlk = step(0.35, g) * step(1.0 - 0.07 * g, hash2(blk + t));
-    vec3 blkCol = mix(vec3(0.0, 0.94, 1.0), vec3(1.0, 0.16, 0.43), step(0.5, hash2(blk * 2.0 + t)));
-    col = mix(col, blkCol, showBlk * 0.75);
+    // 4. Bintik noise statis
+    vec2 cell = floor(vUv * vec2(240.0, 200.0));
+    float speck = step(1.0 - 0.12 * g * g, hash2(cell + t));
+    col = mix(col, vec3(step(0.5, hash2(cell * 1.3 + t))), speck * 0.85);
 
-    // 5. Rona merah saat overload (naik-turun halus, tidak berkedip)
+    // 5. Rona merah saat error berat (naik-turun halus, tidak berkedip)
     float red = smoothstep(0.55, 1.0, g);
-    col = mix(col, col * vec3(1.3, 0.5, 0.6) + vec3(0.1, 0.0, 0.03), red * 0.85);
+    col = mix(col, col * vec3(1.3, 0.5, 0.6) + vec3(0.1, 0.0, 0.03), red * 0.8);
 
-    // 6. Garis scan yang berjalan pelan
+    // 6. Frame rusak sesaat: warna tertukar & sebagian terbalik
+    if (uError > 0.5) {
+      vec3 post = floor(col * 3.0) / 3.0;
+      col = vec3(post.b, post.r, post.g);
+      col = mix(col, 1.0 - col, step(0.55, hash2(vec2(floor(vUv.y * 14.0), t))));
+    }
+
+    // 7. Garis error tipis yang menyala sesaat
+    float ly = hash(t + 7.0);
+    float lineMask = (1.0 - smoothstep(0.0, 0.004, abs(vUv.y - ly))) * step(0.6, g);
+    col = mix(col, vec3(1.0, 0.35, 0.45), lineMask * 0.9);
+
+    // 8. Garis scan berjalan pelan + kecerahan bergetar tipis
     float s = fract(vUv.y - uTime * 0.35);
-    col += smoothstep(0.0, 0.015, s) * (1.0 - smoothstep(0.015, 0.05, s)) * 0.05;
+    col += smoothstep(0.0, 0.015, s) * (1.0 - smoothstep(0.015, 0.05, s)) * 0.04;
+    col *= 1.0 + (hash(t + 3.0) - 0.5) * 0.1 * g;
 
-    // 7. Kilat listrik, hanya saat overload
-    float e = bolt(vUv, floor(uTime * 16.0) + uSeed)
-            + bolt(vUv, floor(uTime * 12.0) + uSeed + 31.0) * step(0.8, g);
-    col += vec3(0.6, 0.95, 1.0) * e * smoothstep(0.5, 0.75, g);
-
-    // 8. Kecerahan bergetar tipis (dibatasi supaya aman untuk mata)
-    col *= 1.0 + (hash(t + 3.0) - 0.5) * 0.12 * g;
-
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
     #include <colorspace_fragment>
   }
 `;
@@ -240,6 +230,10 @@ async function init() {
   let started = false;
   let interacted = false;
 
+  // Total putaran kartu terhadap arah awal (radian). 2π = tali terpuntir 1 kali.
+  let twistTotal = 0;
+  let lastYaw = 0;
+
   /* ---------- Fisika ---------- */
 
   // Hitung arah kartu dari 3 titiknya: r = kanan, u = atas, n = depan
@@ -277,10 +271,24 @@ async function init() {
 
   // Putar kartu: spin = berputar ke kiri/kanan, flip = jungkir ke depan/belakang
   function twist(spin, flip) {
-    P[BL].p.z -= spin;
-    P[BR].p.z += spin;
+    cardFrame();
+    // spin: putar kartu di sekitar sumbu tali (tali ikut terpuntir)
+    P[BL].p.addScaledVector(n, -spin);
+    P[BR].p.addScaledVector(n, spin);
+    // flip: jungkir ke depan/belakang
     P[BL].p.z += flip;
     P[BR].p.z += flip;
+  }
+
+  // Arah hadap kartu di bidang horizontal (radian)
+  function cardYaw() {
+    return Math.atan2(-r.z, r.x);
+  }
+
+  function resetTwist() {
+    cardFrame();
+    lastYaw = cardYaw();
+    twistTotal = 0;
   }
 
   function step(dt, t) {
@@ -314,11 +322,19 @@ async function init() {
       P[0].p.copy(anchor);
     }
 
-    // 3. Pegas puntir halus: kartu pelan-pelan kembali menghadap depan/belakang
-    //    (saat di-drag lebih kuat, supaya kartu tidak terlihat dari samping terus)
-    const dz = (P[BL].p.z - P[BR].p.z) * (dragging ? 0.004 : 0.0006);
-    P[BL].p.z -= dz;
-    P[BR].p.z += dz;
+    // 3. Tali yang terpuntir. Setiap kartu berputar, puntirannya dijumlahkan
+    //    (bisa beberapa putaran). Tali lalu menarik kartu memutar balik sejauh
+    //    itu juga, sempat kelewatan sedikit, sampai kembali ke arah semula.
+    cardFrame();
+    const yaw = cardYaw();
+    let dYaw = yaw - lastYaw;
+    if (dYaw > Math.PI) dYaw -= Math.PI * 2;
+    if (dYaw < -Math.PI) dYaw += Math.PI * 2;
+    lastYaw = yaw;
+    twistTotal += dYaw;
+    const alpha = -TWIST_STIFFNESS * twistTotal * dt * dt - TWIST_DAMPING * dYaw;
+    P[BL].p.addScaledVector(n, alpha * CARD_W / 2);
+    P[BR].p.addScaledVector(n, -alpha * CARD_W / 2);
 
     // Jangan sampai kartu menabrak kamera
     for (let i = 1; i < P.length; i++) {
@@ -343,6 +359,7 @@ async function init() {
   function placeAtRest() {
     for (let i = 0; i <= SEGMENTS; i++) setPoint(i, anchor.x, anchor.y - SEG_LEN * i, 0);
     placeCardBelowHole();
+    resetTwist();
   }
 
   // Mulai dari atas layar, lalu jatuh dan berayun
@@ -352,6 +369,7 @@ async function init() {
       setPoint(i, anchor.x + sway * i, anchor.y + SEG_LEN * i * 0.92, 0);
     }
     placeCardBelowHole();
+    resetTwist();
     // Sedikit putaran awal biar jatuhnya dramatis
     P[BL].q.z = P[BL].p.z - 0.012;
     P[BR].q.z = P[BR].p.z + 0.012;
@@ -361,8 +379,20 @@ async function init() {
   const strapPoints = [];
   for (let i = 0; i <= SEGMENTS + 1; i++) strapPoints.push(new THREE.Vector3());
 
+  // Easter egg: pertama kali sisi belakang kartu menghadap layar
+  let eggFound = false;
+  function checkEasterEgg() {
+    if (eggFound || !hint || n.z > -0.85) return;
+    eggFound = true;
+    interacted = true;
+    hint.textContent = '[ ACCESS GRANTED ]';
+    hint.classList.add('is-visible', 'is-egg');
+    setTimeout(() => hint.classList.remove('is-visible'), 2600);
+  }
+
   function updateScene() {
     cardFrame();
+    checkEasterEgg();
     basis.makeBasis(r, u, n);
     card.position.copy(center);
     card.quaternion.setFromRotationMatrix(basis);
@@ -374,7 +404,7 @@ async function init() {
     strapPoints[0].copy(anchor).add(tmp.set(0, 3, 0));
     for (let i = 0; i < SEGMENTS; i++) strapPoints[i + 1].copy(P[i].p);
     strapPoints[SEGMENTS + 1].copy(P[H].p).addScaledVector(u, 0.16);
-    strap.update(strapPoints, r);
+    strap.update(strapPoints, twistTotal);
   }
 
   /* ---------- Ukuran layar ---------- */
@@ -562,11 +592,12 @@ async function init() {
 
   /* ---------- Glitch & overload ----------
      - Glitch kecil muncul acak tiap 3-6.5 detik
-     - Overload (merah + kilat di foto & pinggir layar) tiap 10-16 detik,
+     - Error berat (datamosh, noise, merah di foto + error di pinggir layar)
+       tiap 10-16 detik,
        atau langsung saat kartu dilempar kencang
      - Saat kursor di atas kartu / kartu dipegang, glitch naik sedikit */
   const t0 = performance.now() / 1000;
-  const fx = { level: 0, peak: 0, until: 0, nextMicro: Infinity, nextOverload: Infinity, lastOverload: -99 };
+  const fx = { level: 0, peak: 0, until: 0, nextMicro: Infinity, nextOverload: Infinity, lastOverload: -99, errorFrames: [] };
 
   function overload(now) {
     if (reduceMotion || root.classList.contains('fx-off') || now - fx.lastOverload < 2.5) return;
@@ -576,6 +607,8 @@ async function init() {
     setTimeout(() => root.classList.remove('is-overload'), 750);
     fx.peak = 1;
     fx.until = now + 0.75;
+    // Dua frame rusak sesaat di dalam error ini (aman: jauh di bawah 3 kedipan/detik)
+    fx.errorFrames = [now + 0.08 + Math.random() * 0.2, now + 0.42 + Math.random() * 0.22];
     fx.nextOverload = now + 10 + Math.random() * 6;
     fx.nextMicro = Math.max(fx.nextMicro, now + 2.5);
     if (edgeFx) edgeFx.play();
@@ -587,6 +620,7 @@ async function init() {
     if (root.classList.contains('fx-off')) {
       // Efek dimatikan pengunjung: foto tenang, jadwal glitch tetap jalan diam-diam
       screen.material.uniforms.uGlitch.value = 0;
+      screen.material.uniforms.uError.value = 0;
       fx.level = 0;
       return;
     }
@@ -605,6 +639,7 @@ async function init() {
     fx.level += (target - fx.level) * (target > fx.level ? 0.5 : 0.12);
 
     screen.material.uniforms.uGlitch.value = fx.level;
+    screen.material.uniforms.uError.value = fx.errorFrames.some((e) => now >= e && now < e + 0.06) ? 1 : 0;
   }
 
   /* ---------- Loop animasi (berhenti saat kartu tidak terlihat) ---------- */
@@ -685,27 +720,26 @@ function makeCard(frontTex, backTex) {
     color: 0x0a0a12,
     emissive: 0x00f0ff,
     emissiveIntensity: 0.9,
-    metalness: 0.4,
-    roughness: 0.4
+    metalness: 0.2,
+    roughness: 0.7
   });
 
-  // Permukaan depan/belakang: mengkilap + efek hologram (iridescence)
-  const face = (tex) => new THREE.MeshPhysicalMaterial({
+  // Permukaan depan/belakang: doff seperti kartu PVC, tidak memantulkan lampu sorot
+  const face = (tex) => new THREE.MeshStandardMaterial({
     map: tex,
     emissiveMap: tex,
     emissive: 0xffffff,
-    emissiveIntensity: 0.55,
-    roughness: 0.32,
-    metalness: 0.1,
-    clearcoat: 1,
-    clearcoatRoughness: 0.1,
-    iridescence: 0.55,
-    iridescenceIOR: 1.4,
-    iridescenceThicknessRange: [180, 520]
+    emissiveIntensity: 0.62,
+    roughness: 0.82,
+    metalness: 0,
+    envMapIntensity: 0.25
   });
 
   // Urutan sisi BoxGeometry: kanan, kiri, atas, bawah, depan, belakang
-  return new THREE.Mesh(geometry, [edge, edge, edge, edge, face(frontTex), face(backTex)]);
+  // Sisi belakang tidak terkena lampu sama sekali, supaya hitamnya benar-benar hitam polos
+  const back = new THREE.MeshBasicMaterial({ map: backTex });
+
+  return new THREE.Mesh(geometry, [edge, edge, edge, edge, face(frontTex), back]);
 }
 
 function makeClip() {
@@ -755,7 +789,7 @@ function makeStrap(texture) {
   const facing = new THREE.Vector3();
   const towardCamera = new THREE.Vector3(0, 0, 1);
 
-  function update(points, cardRight) {
+  function update(points, twist) {
     curve.points = points;
     for (let i = 0; i < SAMPLES; i++) curve.getPoint(i / (SAMPLES - 1), samples[i]);
 
@@ -765,13 +799,15 @@ function makeStrap(texture) {
       const next = samples[Math.min(i + 1, SAMPLES - 1)];
       tangent.subVectors(next, prev).normalize();
 
-      // Pita menghadap kamera, tapi di dekat kartu ikut terpuntir mengikuti kartu
+      // Pita menghadap kamera, lalu diputar mengelilingi arah tali.
+      // Makin ke bawah makin terpuntir; di ujung bawah puntirannya = total putaran kartu,
+      // jadi kalau kartu diputar 2x, pitanya kelihatan melilit 2x.
       side.crossVectors(tangent, towardCamera);
       if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
       side.normalize();
-      facing.copy(cardRight);
-      if (facing.dot(side) < 0) facing.negate();
-      side.lerp(facing, smoothstep(0.75, 1, i / (SAMPLES - 1))).normalize();
+      const phi = -twist * (i / (SAMPLES - 1));
+      facing.crossVectors(tangent, side);
+      side.multiplyScalar(Math.cos(phi)).addScaledVector(facing, Math.sin(phi)).normalize();
 
       if (i > 0) length += samples[i].distanceTo(samples[i - 1]);
 
@@ -805,6 +841,7 @@ function makePhotoScreen(texture) {
       uTex: { value: texture },
       uTime: { value: 0 },
       uGlitch: { value: 0.05 },
+      uError: { value: 0 },
       uSeed: { value: Math.floor(Math.random() * 100) }
     },
     vertexShader: GLITCH_VERTEX,
@@ -822,11 +859,11 @@ function makePhotoScreen(texture) {
   return { mesh, material };
 }
 
-/* Efek pinggir layar saat overload: rona merah samar + kilat listrik
-   yang merambat di tepi layar. Digambar di <canvas> 2D yang menutupi layar,
-   hanya selama ±0.8 detik, lalu dibersihkan lagi. */
+/* Efek pinggir layar saat error berat: rona merah samar, bilah gambar "robek",
+   bintik noise, garis error tipis, dan kotak pesan error kecil di tepi layar.
+   Digambar di <canvas> 2D yang menutupi layar selama ±0.9 detik, lalu dibersihkan. */
 function createEdgeFx() {
-  const DURATION = 0.8;
+  const DURATION = 0.9;
   const canvasFx = document.createElement('canvas');
   canvasFx.className = 'fx-edge';
   canvasFx.setAttribute('aria-hidden', 'true');
@@ -838,8 +875,25 @@ function createEdgeFx() {
   let dpr = 1;
   let active = false;
   let startTime = 0;
-  let lastRegen = 0;
-  let arcs = [];
+  let lastBars = 0;
+  let lastPopups = 0;
+  let bars = [];
+  let noise = [];
+  let lines = [];
+  let popups = [];
+
+  const HEX = '0123456789ABCDEF';
+  const hex = (n) => Array.from({ length: n }, () => HEX[Math.floor(Math.random() * 16)]).join('');
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const MESSAGES = [
+    () => `ERR 0x${hex(4)}`,
+    () => `SIGNAL INTEGRITY ${Math.floor(Math.random() * 30)}%`,
+    () => 'SYNC LOST',
+    () => `MEMORY FAULT @ 0x${hex(6)}`,
+    () => 'INPUT OVERFLOW',
+    () => `RETRY ${1 + Math.floor(Math.random() * 3)}/3`
+  ];
+  const BAR_COLORS = ['255, 42, 109', '0, 240, 255', '245, 230, 99'];
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -851,56 +905,56 @@ function createEdgeFx() {
 
   // Satu kali naik lalu turun pelan: tidak berkedip-kedip (aman untuk mata)
   function envelope(t) {
-    if (t < 0.12) return t / 0.12;
-    if (t < 0.35) return 1;
-    return Math.max(0, 1 - (t - 0.35) / (DURATION - 0.35));
+    if (t < 0.1) return t / 0.1;
+    if (t < 0.4) return 1;
+    return Math.max(0, 1 - (t - 0.4) / (DURATION - 0.4));
   }
 
-  // Garis zig-zag dengan metode "midpoint displacement"
-  function jagged(x1, y1, x2, y2, spread, depth, out) {
-    if (depth === 0) {
-      out.push([x2, y2]);
-      return;
+  // Bilah-bilah tipis yang menempel di tepi kiri/kanan (kadang atas/bawah)
+  function makeBars() {
+    const list = [];
+    const count = w < 600 ? 4 : 6;
+    for (let i = 0; i < count; i++) {
+      const bw = rand(60, w < 600 ? 160 : 260);
+      const bh = rand(3, 24);
+      const r = Math.random();
+      let x;
+      let y;
+      if (r < 0.4) { x = 0; y = rand(0, h - bh); }
+      else if (r < 0.8) { x = w - bw; y = rand(0, h - bh); }
+      else if (r < 0.9) { x = rand(0, w - bw); y = rand(0, 40); }
+      else { x = rand(0, w - bw); y = h - bh - rand(0, 40); }
+      list.push({ x, y, w: bw, h: bh, color: BAR_COLORS[Math.floor(Math.random() * BAR_COLORS.length)] });
     }
-    const mx = (x1 + x2) / 2 + (Math.random() - 0.5) * spread;
-    const my = (y1 + y2) / 2 + (Math.random() - 0.5) * spread;
-    jagged(x1, y1, mx, my, spread / 2, depth - 1, out);
-    jagged(mx, my, x2, y2, spread / 2, depth - 1, out);
+    return list;
   }
 
-  // Kilat yang menempel di salah satu tepi layar, melengkung sedikit ke dalam
-  function makeArc() {
-    const edge = Math.floor(Math.random() * 4); // 0 atas, 1 kanan, 2 bawah, 3 kiri
-    const along = edge % 2 === 0 ? w : h;
-    const len = 140 + Math.random() * 220;
-    const s = Math.random() * Math.max(along - len, 1);
-    const depth = 18 + Math.random() * 46;
-    const toXY = (a, d) => {
-      if (edge === 0) return [a, d];
-      if (edge === 1) return [w - d, a];
-      if (edge === 2) return [a, h - d];
-      return [d, a];
-    };
-    const [ax, ay] = toXY(s, 2);
-    const [mx, my] = toXY(s + len / 2, depth);
-    const [bx, by] = toXY(s + len, 2);
-    const pts = [[ax, ay]];
-    jagged(ax, ay, mx, my, 34, 4, pts);
-    jagged(mx, my, bx, by, 34, 4, pts);
-
-    // Cabang kecil
-    const from = pts[Math.floor(pts.length * (0.3 + Math.random() * 0.4))];
-    const [tx, ty] = toXY(s + len * Math.random(), depth + 30 + Math.random() * 40);
-    const branch = [[from[0], from[1]]];
-    jagged(from[0], from[1], tx, ty, 26, 3, branch);
-    return [pts, branch];
+  // Petak bintik noise statis di dekat tepi kiri/kanan
+  function makeNoise() {
+    return [0, 1].map(() => {
+      const pw = rand(70, 150);
+      const ph = rand(30, 80);
+      return {
+        x: Math.random() < 0.5 ? rand(0, 40) : w - pw - rand(0, 40),
+        y: rand(h * 0.1, h * 0.9 - ph),
+        w: pw,
+        h: ph
+      };
+    });
   }
 
-  function strokePath(points) {
-    ctx.beginPath();
-    ctx.moveTo(points[0][0], points[0][1]);
-    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
-    ctx.stroke();
+  // Kotak pesan error kecil
+  function makePopups() {
+    const count = w < 600 ? 1 : 2;
+    return Array.from({ length: count }, (_, i) => {
+      const left = i % 2 === 0;
+      return {
+        text: MESSAGES[Math.floor(Math.random() * MESSAGES.length)](),
+        x: left ? rand(16, 60) : w - rand(16, 60),
+        y: rand(h * 0.2, h * 0.85),
+        alignRight: !left
+      };
+    });
   }
 
   function tick(now) {
@@ -917,29 +971,63 @@ function createEdgeFx() {
     // Rona merah di tepi layar
     const vignette = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.32, w / 2, h / 2, Math.hypot(w, h) / 2);
     vignette.addColorStop(0, 'rgba(255, 42, 109, 0)');
-    vignette.addColorStop(1, `rgba(255, 42, 109, ${0.24 * k})`);
+    vignette.addColorStop(1, `rgba(255, 42, 109, ${0.2 * k})`);
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, w, h);
 
-    // Kilat dibuat ulang tiap 60ms supaya terlihat "menyambar"
-    if (now - lastRegen > 60) {
-      arcs = [];
-      const count = w < 600 ? 2 : 3;
-      for (let i = 0; i < count; i++) arcs.push(...makeArc());
-      lastRegen = now;
+    // Bilah, noise, dan garis diacak ulang tiap 90ms; pesan error tiap 280ms
+    if (now - lastBars > 90) {
+      bars = makeBars();
+      noise = makeNoise();
+      lines = Array.from({ length: 1 + Math.floor(Math.random() * 2) }, () => rand(0, h));
+      lastBars = now;
+    }
+    if (now - lastPopups > 280) {
+      popups = makePopups();
+      lastPopups = now;
     }
 
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 14;
-    ctx.strokeStyle = `rgba(0, 240, 255, ${0.7 * k})`;
-    ctx.lineWidth = 5;
-    arcs.forEach(strokePath);
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = `rgba(235, 255, 255, ${0.95 * k})`;
-    ctx.lineWidth = 1.3;
-    arcs.forEach(strokePath);
+    // Bilah gambar robek + pantulan putih tipis
+    bars.forEach((bar) => {
+      ctx.fillStyle = `rgba(${bar.color}, ${0.5 * k})`;
+      ctx.fillRect(bar.x, bar.y, bar.w, bar.h);
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.22 * k})`;
+      ctx.fillRect(bar.x + 6, bar.y + 2, bar.w * 0.6, Math.max(1, bar.h * 0.25));
+    });
+
+    // Bintik noise
+    noise.forEach((nz) => {
+      for (let yy = 0; yy < nz.h; yy += 3) {
+        for (let xx = 0; xx < nz.w; xx += 3) {
+          if (Math.random() < 0.35) {
+            ctx.fillStyle = Math.random() < 0.5 ? `rgba(232, 241, 255, ${0.5 * k})` : `rgba(255, 42, 109, ${0.5 * k})`;
+            ctx.fillRect(nz.x + xx, nz.y + yy, 2, 2);
+          }
+        }
+      }
+    });
+
+    // Garis error tipis selebar layar
+    ctx.fillStyle = `rgba(232, 241, 255, ${0.3 * k})`;
+    lines.forEach((ly) => ctx.fillRect(0, ly, w, 1));
+
+    // Kotak pesan error
+    ctx.font = '700 12px "JetBrains Mono", Consolas, monospace';
+    ctx.textBaseline = 'middle';
+    popups.forEach((pp) => {
+      const bw = ctx.measureText(pp.text).width + 22;
+      const bh = 24;
+      const x = pp.alignRight ? pp.x - bw : pp.x;
+      ctx.fillStyle = `rgba(6, 6, 11, ${0.85 * k})`;
+      ctx.fillRect(x, pp.y, bw, bh);
+      ctx.strokeStyle = `rgba(255, 42, 109, ${0.9 * k})`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, pp.y + 0.5, bw - 1, bh - 1);
+      ctx.fillStyle = `rgba(255, 42, 109, ${k})`;
+      ctx.fillRect(x, pp.y, 4, bh);
+      ctx.fillStyle = `rgba(232, 241, 255, ${k})`;
+      ctx.fillText(pp.text, x + 12, pp.y + bh / 2 + 1);
+    });
   }
 
   window.addEventListener('resize', () => { if (active) resize(); });
@@ -950,7 +1038,8 @@ function createEdgeFx() {
       resize();
       active = true;
       startTime = performance.now();
-      lastRegen = 0;
+      lastBars = 0;
+      lastPopups = 0;
       requestAnimationFrame(tick);
     }
   };
@@ -983,15 +1072,15 @@ function makeNeonEnvironment(renderer) {
 }
 
 function addLights(scene) {
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.6);
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
   key.position.set(2, 4, 8);
 
-  const rimCyan = new THREE.DirectionalLight(0x00f0ff, 2.2);
+  const rimCyan = new THREE.DirectionalLight(0x00f0ff, 1.1);
   rimCyan.position.set(-6, 1, 3);
 
-  const rimMagenta = new THREE.DirectionalLight(0xff2a6d, 2.0);
+  const rimMagenta = new THREE.DirectionalLight(0xff2a6d, 0.9);
   rimMagenta.position.set(6, -2, 3);
 
   scene.add(key, rimCyan, rimMagenta);
@@ -1090,10 +1179,10 @@ function drawPhotoWindow(ctx, photo, px, py, pw, ph) {
   ctx.globalCompositeOperation = 'source-over';
   const fade = ctx.createLinearGradient(0, py + ph * 0.55, 0, py + ph);
   fade.addColorStop(0, 'rgba(8, 8, 15, 0)');
-  fade.addColorStop(1, 'rgba(8, 8, 15, 0.9)');
+  fade.addColorStop(1, 'rgba(8, 8, 15, 0.5)');
   ctx.fillStyle = fade;
   ctx.fillRect(px, py, pw, ph);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.07)';
   for (let y = py; y < py + ph; y += 6) ctx.fillRect(px, y, pw, 2);
   ctx.restore();
 
@@ -1102,14 +1191,6 @@ function drawPhotoWindow(ctx, photo, px, py, pw, ph) {
   chamfer(ctx, px, py, pw, ph, 40);
   ctx.stroke();
 
-  ctx.font = `700 22px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.yellow;
-  ctx.fillText('[ VERIFIED ]', px + 26, py + 46);
-  ctx.fillStyle = COLORS.cyan;
-  ctx.fillText('SUBJ: A.RUDOLPH', px + 26, py + ph - 28);
-  ctx.textAlign = 'right';
-  ctx.fillText('SI // 06', px + pw - 26, py + ph - 28);
-  ctx.textAlign = 'left';
 }
 
 // Canvas terpisah yang isinya cuma jendela foto, untuk shader glitch.
@@ -1190,123 +1271,57 @@ function drawStat(ctx, label, value, color, right, y) {
   ctx.textAlign = 'left';
 }
 
-// Sisi belakang dibuat seperti kartu akses asli: formal, tenang, satu warna aksen
+// Sisi belakang = easter egg: hitam polos, satu logo merah, satu baris teks kecil.
+// Cuma kelihatan kalau pengunjung berhasil memutar kartunya.
 function drawBack() {
   const [c, ctx] = makeCanvas(TEX_W, TEX_H);
   const W = TEX_W;
   const H = TEX_H;
   const cx = W / 2;
 
-  // Latar polos + bingkai tipis
-  ctx.fillStyle = '#0b0b10';
+  ctx.fillStyle = '#050506';
   ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(232, 241, 255, 0.16)';
-  ctx.lineWidth = 2;
-  chamfer(ctx, 40, 40, W - 80, H - 80, 52);
-  ctx.stroke();
 
-  // Lubang klip
+  // Lubang klip tetap ada (bagian fisik kartu)
   ctx.fillStyle = '#000';
   roundRect(ctx, W / 2 - 90, 72, 180, 30, 15);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Strip magnetik selebar kartu
-  const stripe = ctx.createLinearGradient(0, 150, 0, 262);
-  stripe.addColorStop(0, '#040405');
-  stripe.addColorStop(0.5, '#18181e');
-  stripe.addColorStop(1, '#040405');
-  ctx.fillStyle = stripe;
-  ctx.fillRect(0, 150, W, 112);
+  drawNodeMark(ctx, cx, H / 2 - 60, 190, '#ff2a3d', '#ff2a3d');
 
-  // Logo: simpul-simpul yang saling terhubung (gambaran alur data), tanpa huruf
-  drawNodeMark(ctx, cx, 600, 170);
-
-  // Judul kartu
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = COLORS.text;
-  ctx.font = `600 64px ${DISPLAY_FONT}`;
-  ctx.letterSpacing = '10px'; // diabaikan browser yang belum mendukung, tidak masalah
-  ctx.fillText('ACCESS CARD', cx + 5, 890);
+  ctx.font = `700 26px ${MONO_FONT}`;
+  ctx.letterSpacing = '8px';
+  ctx.fillStyle = 'rgba(255, 42, 61, 0.75)';
+  ctx.fillText('ACCESS GRANTED', cx + 4, H / 2 + 230);
   ctx.letterSpacing = '0px';
-  ctx.font = `500 24px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.muted;
-  ctx.fillText('AUTHORIZED PERSONNEL ONLY', cx, 938);
   ctx.textAlign = 'left';
-
-  ctx.strokeStyle = 'rgba(232, 241, 255, 0.14)';
-  ctx.lineWidth = 2;
-  line(ctx, 110, 990, W - 110, 990);
-
-  // Kolom tanda tangan
-  ctx.font = `500 18px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText('AUTHORIZED SIGNATURE', 110, 1036);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(110, 1052, W - 220, 92);
-  ctx.clip();
-  ctx.fillStyle = '#9ea4b0';
-  ctx.fillRect(110, 1052, W - 220, 92);
-  ctx.strokeStyle = 'rgba(11, 11, 16, 0.08)';
-  ctx.lineWidth = 2;
-  for (let x = 110 - 92; x < W - 110; x += 14) line(ctx, x, 1144, x + 92, 1052);
-  ctx.restore();
-
-  // Ketentuan kartu
-  ctx.font = `500 21px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.dim;
-  ['This card is non-transferable and must be',
-   'presented on request. If found, please',
-   'return it to the cardholder.'].forEach((text, i) => ctx.fillText(text, 110, 1200 + i * 32));
-
-  // Barcode + nomor kartu (sama dengan sisi depan)
-  drawBarcode(ctx, 110, 1330, 400, 90, 2026);
-  ctx.font = `500 20px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText('AR-2026-SI-06', 110, 1452);
-
-  // Pemegang kartu
-  ctx.textAlign = 'right';
-  ctx.font = `500 18px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText('CARDHOLDER', W - 110, 1360);
-  ctx.font = `600 32px ${DISPLAY_FONT}`;
-  ctx.fillStyle = COLORS.text;
-  ctx.fillText('AGHASHA RUDOLPH', W - 110, 1400);
-  ctx.font = `500 20px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.muted;
-  ctx.fillText('INFORMATION SYSTEMS', W - 110, 1434);
-  ctx.textAlign = 'left';
-
-  // Satu-satunya warna aksen
-  ctx.fillStyle = COLORS.magenta;
-  ctx.fillRect(110, H - 130, 64, 4);
 
   return c;
 }
 
 // Logo abstrak: lingkaran berisi jaringan simpul. Simpul tengah = sistemnya,
 // tiga simpul luar = pengguna/proses yang terhubung ke sistem.
-function drawNodeMark(ctx, cx, cy, r) {
+function drawNodeMark(ctx, cx, cy, r, color = COLORS.text, accent = COLORS.magenta) {
   ctx.save();
-  ctx.strokeStyle = COLORS.text;
-  ctx.lineWidth = 6;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = r * 0.045;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
 
   const nodes = [[0, -0.55], [-0.48, 0.3], [0.48, 0.3], [0, 0.02]].map(([x, y]) => [cx + x * r, cy + y * r]);
-  ctx.lineWidth = 5;
+  ctx.lineWidth = r * 0.035;
   [[0, 1], [1, 2], [2, 0], [0, 3], [1, 3], [2, 3]].forEach(([a, b]) => {
     line(ctx, nodes[a][0], nodes[a][1], nodes[b][0], nodes[b][1]);
   });
   nodes.forEach(([x, y], i) => {
     ctx.beginPath();
-    ctx.arc(x, y, i === 3 ? 16 : 22, 0, Math.PI * 2);
-    ctx.fillStyle = i === 3 ? COLORS.magenta : COLORS.text;
+    ctx.arc(x, y, r * (i === 3 ? 0.1 : 0.13), 0, Math.PI * 2);
+    ctx.fillStyle = i === 3 ? accent : color;
     ctx.fill();
   });
   ctx.restore();

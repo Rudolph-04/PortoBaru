@@ -1562,3 +1562,9 @@ a:hover .i-arrow {
   66%  { opacity: .9; transform: translate(-2px, 0);    clip-path: inset(30% 0 35% 0); }
   100% { opacity: .9; transform: translate(3px, 1px);   clip-path: inset(70% 0 5% 0); }
 }
+
+/* Easter egg: muncul saat sisi belakang kartu pertama kali terlihat */
+.badge-hint.is-egg {
+  color: #ff2a3d;
+  animation: none;
+}
