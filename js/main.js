@@ -1,10 +1,11 @@
 /* ==========================================================================
    main.js — interaksi halaman
-   1. Opening (boot screen + tombol Enter)
+   1. Opening: loading sungguhan (font, mesin 3D, foto, kartu ID),
+      nama ter-"decode", lalu transisi bilah yang membuka halaman
    2. Tahun otomatis di footer
-   3. Menu hamburger (mobile)
+   3. Menu hamburger (mobile) + tombol FX on/off
    4. Link navigasi aktif mengikuti section yang sedang dilihat
-   5. Animasi muncul saat di-scroll (reveal)
+   5. Animasi muncul saat di-scroll (reveal) + judul ter-"decode"
 
    Kartu ID 3D ada di file terpisah: js/lanyard.js
    ========================================================================== */
@@ -13,6 +14,68 @@
   'use strict';
 
   var root = document.documentElement;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var SCRAMBLE_CHARS = '!<>-_\\/[]{}=+*^?#01';
+
+  /* EFEK DECODE ----------------------------------------------------------
+     Huruf acak berganti-ganti sebelum jadi teks asli. Dihitung pakai waktu
+     (bukan jumlah frame), jadi tetap selesai tepat waktu walaupun HP lambat.
+     opts.maxStart / opts.minDur / opts.rangeDur mengatur lamanya (ms). */
+  function scramble(el, opts, onDone) {
+    opts = opts || {};
+    var finish = onDone || function () {};
+    if (!el || reduceMotion || root.classList.contains('fx-off') || el.dataset.scrambled) {
+      finish();
+      return;
+    }
+    el.dataset.scrambled = '1';
+    var finalText = el.textContent;
+    var maxStart = opts.maxStart || 250;
+    var minDur = opts.minDur || 200;
+    var rangeDur = opts.rangeDur || 350;
+    var queue = [];
+    for (var i = 0; i < finalText.length; i++) {
+      var start = Math.random() * maxStart;
+      queue.push({ to: finalText[i], start: start, end: start + minDur + Math.random() * rangeDur });
+    }
+    el.setAttribute('aria-label', finalText); // pembaca layar tetap baca teks asli
+    var t0 = performance.now();
+    var lastSwap = 0;
+
+    (function update(now) {
+      var elapsed = (now || performance.now()) - t0;
+      // Ganti huruf acak tiap ~50ms supaya tidak terlalu berkedip
+      var swap = elapsed - lastSwap > 50;
+      if (swap) lastSwap = elapsed;
+
+      var frag = document.createDocumentFragment();
+      var done = 0;
+      for (var j = 0; j < queue.length; j++) {
+        var q = queue[j];
+        if (q.to === ' ' || elapsed >= q.end) {
+          frag.appendChild(document.createTextNode(q.to));
+          done++;
+          continue;
+        }
+        if (swap || !q.ch) q.ch = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        var dud = document.createElement('span');
+        dud.className = 'dud';
+        dud.textContent = elapsed >= q.start ? q.ch : q.to;
+        if (elapsed < q.start) dud.style.opacity = '0';
+        frag.appendChild(dud);
+      }
+      el.textContent = '';
+      el.appendChild(frag);
+
+      if (done < queue.length) {
+        requestAnimationFrame(update);
+      } else {
+        el.textContent = finalText;
+        el.removeAttribute('aria-label');
+        finish();
+      }
+    })();
+  }
 
   /* 1. OPENING ----------------------------------------------------------- */
   var intro = document.getElementById('intro');
@@ -27,134 +90,124 @@
   }
 
   function runIntro() {
-    var log = document.getElementById('intro-log');
     var fill = document.getElementById('intro-bar-fill');
-    var pct = document.getElementById('intro-pct');
+    var pctEl = document.getElementById('intro-pct');
+    var stepEl = document.getElementById('intro-step');
     var enterBtn = document.getElementById('intro-enter');
     var skipBtn = document.getElementById('intro-skip');
+    var clockEl = document.getElementById('intro-clock');
+    var nameLines = intro.querySelectorAll('.intro-line');
 
-    // [teks, status, kelas warna status]
-    var lines = [
-      ['> BOOT A.R_SYSTEMS', '', ''],
-      ['> LOADING PROFILE ............. ', 'OK', 'ok'],
-      ['> MOUNTING PROJECTS [4] ....... ', 'OK', 'ok'],
-      ['> CALIBRATING LANYARD PHYSICS . ', 'OK', 'ok'],
-      ['> CLEARANCE LEVEL ............. ', 'STUDENT', 'warn'],
-      ['> IDENTITY CONFIRMED', '', '']
+    // Tahap loading yang benar-benar terjadi. "engine", "assets", dan "card"
+    // dilaporkan oleh js/lanyard.js lewat event "lanyard:status".
+    var STEPS = [
+      { id: 'fonts', label: 'Loading fonts' },
+      { id: 'engine', label: 'Loading 3D engine' },
+      { id: 'assets', label: 'Loading photo' },
+      { id: 'card', label: 'Building ID card' }
     ];
+    var MIN_TIME = 1600;  // opening tampil minimal segini supaya animasinya sempat terlihat
+    var MAX_WAIT = 5000;  // jaringan lambat / 3D gagal: lanjut saja setelah ini
 
-    var timers = [];
+    var doneSteps = {};
+    var target = 0;
+    var shown = 0;
+    var decoded = false;
     var ready = false;
     var leaving = false;
-    var caret = document.createElement('span');
-    caret.className = 'caret';
+    var enterQueued = false;
+    var t0 = performance.now();
 
     behind.forEach(function (el) { if (el) el.inert = true; });
     skipBtn.focus({ preventScroll: true });
 
-    function later(fn, ms) {
-      timers.push(setTimeout(fn, ms));
+    // Jam lokal pengunjung di pojok layar
+    function tickClock() {
+      var d = new Date();
+      clockEl.textContent = [d.getHours(), d.getMinutes(), d.getSeconds()]
+        .map(function (n) { return String(n).padStart(2, '0'); }).join(':');
+    }
+    tickClock();
+    var clockTimer = setInterval(tickClock, 1000);
+
+    function completeStep(id) {
+      if (doneSteps[id]) return;
+      doneSteps[id] = true;
+      var count = STEPS.filter(function (s) { return doneSteps[s.id]; }).length;
+      target = count / STEPS.length;
+      var next = STEPS.filter(function (s) { return !doneSteps[s.id]; })[0];
+      stepEl.textContent = next ? next.label : 'System ready';
     }
 
-    function setProgress(value) {
-      fill.style.width = value + '%';
-      pct.textContent = value + '%';
+    function completeAll() {
+      STEPS.forEach(function (s) { completeStep(s.id); });
     }
 
-    // Ketik satu baris huruf per huruf, lalu tampilkan statusnya
-    function typeLine(index) {
-      if (index >= lines.length) {
-        later(identify, 250);
-        return;
-      }
-
-      var text = lines[index][0];
-      var status = lines[index][1];
-      var statusClass = lines[index][2];
-      var lineEl = document.createElement('span');
-      log.appendChild(lineEl);
-      log.appendChild(caret);
-
-      var pos = 0;
-      (function typeChar() {
-        pos += 2; // 2 huruf per tick supaya tidak kelamaan
-        lineEl.textContent = text.slice(0, pos);
-        if (pos < text.length) {
-          later(typeChar, 14);
-          return;
-        }
-        if (status) {
-          var s = document.createElement('span');
-          s.className = statusClass;
-          s.textContent = status;
-          lineEl.appendChild(s);
-        }
-        log.insertBefore(document.createTextNode('\n'), caret);
-        setProgress(Math.round(((index + 1) / lines.length) * 100));
-        later(function () { typeLine(index + 1); }, status ? 120 : 200);
-      })();
+    stepEl.textContent = STEPS[0].label;
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { completeStep('fonts'); });
+    } else {
+      completeStep('fonts');
     }
+    document.addEventListener('lanyard:status', function (e) {
+      if (e.detail && e.detail.step) completeStep(e.detail.step);
+    });
+    var maxTimer = setTimeout(completeAll, MAX_WAIT);
 
-    function identify() {
-      intro.classList.add('is-identified');
-      later(setReady, 500);
-    }
+    // Nama di-decode pelan-pelan
+    var pending = nameLines.length;
+    setTimeout(function () {
+      nameLines.forEach(function (line) {
+        scramble(line, { maxStart: 450, minDur: 450, rangeDur: 600 }, function () {
+          pending--;
+          if (pending <= 0) decoded = true;
+        });
+      });
+    }, 250);
+
+    // Bar progres bergerak halus menuju progres yang sebenarnya
+    (function animate() {
+      if (leaving) return;
+      shown += (target - shown) * 0.12;
+      if (target - shown < 0.002) shown = target;
+      fill.style.transform = 'scaleX(' + shown.toFixed(4) + ')';
+      pctEl.textContent = String(Math.round(shown * 100)).padStart(3, '0') + '%';
+      if (!ready && shown >= 1 && decoded && performance.now() - t0 >= MIN_TIME) setReady();
+      requestAnimationFrame(animate);
+    })();
 
     function setReady() {
-      if (ready) return;
       ready = true;
-      setProgress(100);
+      clearTimeout(maxTimer);
       intro.classList.add('is-ready');
+      if (enterQueued) {
+        leave();
+        return;
+      }
       enterBtn.focus({ preventScroll: true });
-    }
-
-    // Lompat langsung ke akhir animasi (kalau user tekan Enter sebelum selesai)
-    function fastForward() {
-      timers.forEach(clearTimeout);
-      timers = [];
-      log.textContent = '';
-      lines.forEach(function (l) {
-        var lineEl = document.createElement('span');
-        lineEl.textContent = l[0];
-        if (l[1]) {
-          var s = document.createElement('span');
-          s.className = l[2];
-          s.textContent = l[1];
-          lineEl.appendChild(s);
-        }
-        log.appendChild(lineEl);
-        log.appendChild(document.createTextNode('\n'));
-      });
-      log.appendChild(caret);
-      intro.classList.add('is-identified');
-      setReady();
     }
 
     function leave() {
       if (leaving) return;
       leaving = true;
-      timers.forEach(clearTimeout);
+      clearTimeout(maxTimer);
+      clearInterval(clockTimer);
       document.removeEventListener('keydown', onKey);
       intro.classList.add('is-leaving');
 
-      // Kartu mulai jatuh sedikit sebelum layar opening benar-benar hilang
+      // Kartu mulai jatuh saat bilah-bilah layar mulai terbuka
       setTimeout(function () {
         root.classList.add('intro-released');
         document.dispatchEvent(new CustomEvent('intro:done'));
       }, 250);
 
-      var finished = false;
-      function finish() {
-        if (finished) return;
-        finished = true;
+      setTimeout(function () {
         intro.hidden = true;
         root.classList.remove('intro-active');
         root.classList.add('intro-done');
         behind.forEach(function (el) { if (el) el.inert = false; });
         document.getElementById('main').focus({ preventScroll: true });
-      }
-      intro.addEventListener('animationend', finish, { once: true });
-      setTimeout(finish, 900); // jaga-jaga kalau animationend tidak terpanggil
+      }, 1100);
     }
 
     function onKey(e) {
@@ -162,15 +215,14 @@
         leave();
       } else if ((e.key === 'Enter' || e.key === ' ') && e.target !== enterBtn && e.target !== skipBtn) {
         e.preventDefault();
-        if (ready) leave(); else fastForward();
+        // Belum siap? Masuk otomatis begitu loading selesai
+        if (ready) leave(); else enterQueued = true;
       }
     }
 
     enterBtn.addEventListener('click', leave);
     skipBtn.addEventListener('click', leave);
     document.addEventListener('keydown', onKey);
-
-    later(function () { typeLine(0); }, 300);
   }
 
   /* 2. TAHUN DI FOOTER --------------------------------------------------- */
@@ -209,7 +261,7 @@
   });
 
   /* 3b. TOMBOL FX ON/OFF ------------------------------------------------
-     Mematikan glitch, scanline, dan efek overload kartu. Pilihan disimpan
+     Mematikan glitch, scanline, dan efek error kartu. Pilihan disimpan
      di browser pengunjung, jadi tetap mati saat halaman dibuka lagi. */
   var fxBtn = document.getElementById('fx-toggle');
 
@@ -257,59 +309,6 @@
   });
 
   /* 5. REVEAL SAAT DI-SCROLL -------------------------------------------- */
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var SCRAMBLE_CHARS = '!<>-_\\/[]{}=+*^?#01';
-
-  // Efek "decode": huruf acak berganti-ganti sebelum jadi teks asli.
-  // Dihitung pakai waktu (bukan jumlah frame), jadi selalu selesai < 1 detik
-  // walaupun HP-nya lambat.
-  function scramble(el) {
-    if (!el || reduceMotion || root.classList.contains('fx-off') || el.dataset.scrambled) return;
-    el.dataset.scrambled = '1';
-    var finalText = el.textContent;
-    var queue = [];
-    for (var i = 0; i < finalText.length; i++) {
-      var start = Math.random() * 250;                  // mulai acak 0-250ms
-      queue.push({ to: finalText[i], start: start, end: start + 200 + Math.random() * 350 });
-    }
-    el.setAttribute('aria-label', finalText); // pembaca layar tetap baca teks asli
-    var t0 = performance.now();
-    var lastSwap = 0;
-
-    (function update(now) {
-      var elapsed = (now || performance.now()) - t0;
-      // Ganti huruf acak tiap ~50ms supaya tidak terlalu berkedip
-      var swap = elapsed - lastSwap > 50;
-      if (swap) lastSwap = elapsed;
-
-      var frag = document.createDocumentFragment();
-      var done = 0;
-      for (var j = 0; j < queue.length; j++) {
-        var q = queue[j];
-        if (q.to === ' ' || elapsed >= q.end) {
-          frag.appendChild(document.createTextNode(q.to));
-          done++;
-          continue;
-        }
-        if (swap || !q.ch) q.ch = SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-        var dud = document.createElement('span');
-        dud.className = 'dud';
-        dud.textContent = elapsed >= q.start ? q.ch : q.to;
-        if (elapsed < q.start) dud.style.opacity = '0';
-        frag.appendChild(dud);
-      }
-      el.textContent = '';
-      el.appendChild(frag);
-
-      if (done < queue.length) {
-        requestAnimationFrame(update);
-      } else {
-        el.textContent = finalText;
-        el.removeAttribute('aria-label');
-      }
-    })();
-  }
-
   var revealObserver = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (entry.isIntersecting) {

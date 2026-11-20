@@ -145,8 +145,18 @@ const GLITCH_FRAGMENT = /* glsl */ `
   }
 `;
 
+// Laporkan progres ke opening (js/main.js) lewat event "lanyard:status"
+emitStatus('engine');
 if (stage && canvas && hasWebGL()) {
-  init().catch((err) => console.warn('[lanyard] kartu 3D dimatikan:', err));
+  init().catch((err) => {
+    console.warn('[lanyard] kartu 3D dimatikan:', err);
+    emitStatus('assets');
+    emitStatus('card');
+  });
+} else {
+  // Tanpa WebGL: yang tampil kartu cadangan, opening tidak perlu menunggu
+  emitStatus('assets');
+  emitStatus('card');
 }
 
 /* ==========================================================================
@@ -154,6 +164,7 @@ if (stage && canvas && hasWebGL()) {
    ========================================================================== */
 async function init() {
   const [photo] = await Promise.all([loadImage('assets/img/card-photo.jpg'), loadFonts()]);
+  emitStatus('assets');
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -702,6 +713,7 @@ async function init() {
   }
 
   root.classList.add('has-webgl');
+  emitStatus('card');
 
   if (root.classList.contains('intro-done') || root.classList.contains('intro-released')) {
     start();
@@ -1225,6 +1237,10 @@ function drawStrap() {
 /* ==========================================================================
    FUNGSI BANTU
    ========================================================================== */
+function emitStatus(step) {
+  document.dispatchEvent(new CustomEvent('lanyard:status', { detail: { step } }));
+}
+
 function hasWebGL() {
   try {
     const test = document.createElement('canvas');

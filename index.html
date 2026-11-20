@@ -47,25 +47,40 @@
 
   <!-- ============ OPENING ============ -->
   <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title">
-    <button class="intro-skip" id="intro-skip" type="button">Skip intro &gt;&gt;</button>
+    <!-- Latar dari 6 bilah; saat masuk ke portfolio, bilah bergeser membuka halaman -->
+    <div class="intro-shutter" aria-hidden="true">
+      <span style="--i:0"></span><span style="--i:1"></span><span style="--i:2"></span>
+      <span style="--i:3"></span><span style="--i:4"></span><span style="--i:5"></span>
+    </div>
+
+    <span class="intro-corner tl" aria-hidden="true"></span>
+    <span class="intro-corner tr" aria-hidden="true"></span>
+    <span class="intro-corner bl" aria-hidden="true"></span>
+    <span class="intro-corner br" aria-hidden="true"></span>
+
+    <p class="intro-clock" aria-hidden="true">Local time <b id="intro-clock">--:--:--</b></p>
+    <button class="intro-skip" id="intro-skip" type="button">Skip intro</button>
 
     <div class="intro-inner">
-      <pre class="intro-log" id="intro-log" aria-hidden="true"></pre>
-
-      <div class="intro-id" id="intro-id">
-        <p class="intro-title" id="intro-title">
-          <span class="glitch" data-text="AGHASHA">AGHASHA</span>
-          <span class="glitch" data-text="RUDOLPH">RUDOLPH</span>
-        </p>
-        <p class="intro-sub">Information Systems // Portfolio</p>
-      </div>
+      <p class="intro-label">// Initializing portfolio</p>
+      <p class="intro-title" id="intro-title">
+        <span class="intro-line">AGHASHA</span>
+        <span class="intro-line">RUDOLPH</span>
+      </p>
+      <p class="intro-sub">Information Systems · Smart Application</p>
 
       <div class="intro-progress" aria-hidden="true">
         <div class="intro-bar"><span id="intro-bar-fill"></span></div>
-        <span class="intro-pct" id="intro-pct">0%</span>
+        <div class="intro-status">
+          <span id="intro-step">Loading</span>
+          <span id="intro-pct">000%</span>
+        </div>
       </div>
 
-      <button class="intro-enter" id="intro-enter" type="button">[ Enter portfolio ]</button>
+      <button class="intro-enter" id="intro-enter" type="button">
+        Enter portfolio
+        <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>
+      </button>
       <p class="intro-hint" aria-hidden="true">or press Enter</p>
     </div>
   </div>
