@@ -111,6 +111,19 @@
     </div>
   </header>
 
+  <!-- Rail HUD: posisi section + progres scroll (hanya layar lebar) -->
+  <div class="hud-rail" id="hud-rail" aria-hidden="true">
+    <span class="rail-pct" id="rail-pct">000</span>
+    <ol class="rail-list">
+      <li><a href="#about" tabindex="-1" data-rail="about"><i>01</i><b>About</b></a></li>
+      <li><a href="#process" tabindex="-1" data-rail="process"><i>02</i><b>Process</b></a></li>
+      <li><a href="#projects" tabindex="-1" data-rail="projects"><i>03</i><b>Projects</b></a></li>
+      <li><a href="#skills" tabindex="-1" data-rail="skills"><i>04</i><b>Skills</b></a></li>
+      <li><a href="#contact" tabindex="-1" data-rail="contact"><i>05</i><b>Contact</b></a></li>
+    </ol>
+    <span class="rail-line"><span class="rail-fill" id="rail-fill"></span></span>
+  </div>
+
   <main id="main" tabindex="-1">
     <!-- ============ HERO ============ -->
     <section class="hero" aria-labelledby="hero-title">
@@ -173,7 +186,7 @@
         </header>
 
         <div class="about-grid">
-          <figure class="about-photo reveal">
+          <figure class="about-photo reveal reveal-clip">
             <img src="assets/img/about.jpg" width="960" height="1280" loading="lazy"
                  alt="Aghasha working on a laptop in a computer lab while classmates look on">
           </figure>
@@ -216,177 +229,103 @@
           <p class="section-intro">Good software starts with understanding the job it replaces.</p>
         </header>
 
-        <ol class="steps">
-          <li class="step panel reveal">
-            <span class="step-num">01</span>
-            <h3>Observe</h3>
-            <p>Talk to the people doing the work and look at how it runs today: paper forms, spreadsheets, chat groups.</p>
-          </li>
-          <li class="step panel reveal">
-            <span class="step-num">02</span>
-            <h3>Model</h3>
-            <p>Turn the process into use case, activity, and ER diagrams so everyone agrees on what the system must do.</p>
-          </li>
-          <li class="step panel reveal">
-            <span class="step-num">03</span>
-            <h3>Design</h3>
-            <p>Define user roles, features, and screens. Decide what to automate and what stays manual.</p>
-          </li>
-          <li class="step panel reveal">
-            <span class="step-num">04</span>
-            <h3>Build &amp; test</h3>
-            <p>Ship a working version, run it against real data, and fix what breaks.</p>
-          </li>
-        </ol>
+        <div class="timeline" id="timeline">
+          <div class="timeline-track" aria-hidden="true"><span class="timeline-fill"></span></div>
+          <ol class="steps">
+            <li class="step" style="--i:0">
+              <span class="step-dot" aria-hidden="true"></span>
+              <span class="step-num">01</span>
+              <h3>Observe</h3>
+              <p>Talk to the people doing the work and look at how it runs today: paper forms, spreadsheets, chat groups.</p>
+              <span class="step-out">Interviews · field notes</span>
+            </li>
+            <li class="step" style="--i:1">
+              <span class="step-dot" aria-hidden="true"></span>
+              <span class="step-num">02</span>
+              <h3>Model</h3>
+              <p>Turn the process into use case, activity, and ER diagrams so everyone agrees on what the system must do.</p>
+              <span class="step-out">Use case · activity · ERD</span>
+            </li>
+            <li class="step" style="--i:2">
+              <span class="step-dot" aria-hidden="true"></span>
+              <span class="step-num">03</span>
+              <h3>Design</h3>
+              <p>Define user roles, features, and screens. Decide what to automate and what stays manual.</p>
+              <span class="step-out">Roles · features · wireframes</span>
+            </li>
+            <li class="step" style="--i:3">
+              <span class="step-dot" aria-hidden="true"></span>
+              <span class="step-num">04</span>
+              <h3>Build &amp; test</h3>
+              <p>Ship a working version, run it against real data, and fix what breaks.</p>
+              <span class="step-out">Code · real data · fixes</span>
+            </li>
+          </ol>
+        </div>
       </div>
     </section>
 
-    <!-- ============ PROJECTS ============ -->
+    <!-- ============ PROJECTS (CASE FILES) ============ -->
     <section class="section" id="projects" aria-labelledby="projects-title">
       <div class="container">
         <header class="section-head reveal">
           <span class="section-num">// 03</span>
-          <h2 id="projects-title">Projects</h2>
-          <p class="section-intro">Each card shows the system map: who uses it, and which modules they touch.</p>
+          <h2 id="projects-title">Case files</h2>
+          <p class="section-intro">
+            Four systems, opened up. Each file shows the data model, the flow, and the access
+            rules, all taken straight from the source code.
+          </p>
         </header>
 
-        <div class="projects">
-
-          <!-- Project: SIP Posyandu -->
-          <article class="project panel reveal">
-            <div class="project-body">
-              <p class="project-meta">File_01 // 2026 // Web app</p>
-              <h3>SIP Posyandu</h3>
-              <p class="project-desc">
-                A web system for recording child health data at a posyandu (community
-                health post), with separate access for admins, health cadres, and parents.
-              </p>
-              <ul class="project-points">
-                <li>Three roles with their own dashboards: admin, kader, and parent</li>
-                <li>Manage child records, immunizations, and weighing sessions</li>
-                <li>Login, registration, and profile management</li>
-              </ul>
-              <p class="project-stack">Laravel 12 · PHP 8.2 · Breeze · Tailwind CSS</p>
-              <a class="project-link" href="https://github.com/Rudolph-04/sip-posyandu" target="_blank" rel="noopener">
-                Source on GitHub
-                <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>
+        <div class="case-index reveal">
+          <ol class="case-list reveal-stagger">
+            <li>
+              <a class="case-row" href="https://github.com/Rudolph-04/sip-posyandu" target="_blank" rel="noopener" data-case="posyandu">
+                <span class="case-no">01</span>
+                <span class="case-main">
+                  <span class="case-name">SIP Posyandu</span>
+                  <span class="case-desc">Child health records with three roles and cascading data.</span>
+                </span>
+                <span class="case-meta"><span>Web app</span><span>2026</span><span class="case-stack">Laravel · Tailwind · SQLite</span></span>
+                <span class="case-open">Open file <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg></span>
               </a>
-            </div>
-
-            <figure class="sysmap" aria-label="System map: Admin, Kader, and Parent use the Child data, Immunization, and Weighing modules">
-              <figcaption>Sys.map</figcaption>
-              <div class="sysmap-row actors">
-                <span class="node">Admin</span><span class="node">Kader</span><span class="node">Orang tua</span>
-              </div>
-              <div class="sysmap-link" aria-hidden="true"></div>
-              <div class="sysmap-row modules">
-                <span class="node">Data anak</span><span class="node">Imunisasi</span><span class="node">Penimbangan</span>
-              </div>
-            </figure>
-          </article>
-
-          <!-- Project: PlayBook -->
-          <article class="project panel reveal">
-            <div class="project-body">
-              <p class="project-meta">File_02 // 2026 // Mobile app + REST API</p>
-              <h3>PlayBook</h3>
-              <p class="project-desc">
-                A PlayStation rental app. Customers book a console to play on-site or take
-                home; admins run the units, packages, payments, and late fees.
-              </p>
-              <ul class="project-points">
-                <li>Full rental flow: check availability, confirm, start, track remaining time, complete</li>
-                <li>Payments, fines, and transaction reports for the admin</li>
-                <li>Role and permission tables in a 10-table MySQL schema</li>
-              </ul>
-              <p class="project-stack">Flutter · Dart · GetX · PHP REST API · MySQL</p>
-              <a class="project-link" href="https://github.com/Rudolph-04/playbook_lib" target="_blank" rel="noopener">
-                Source on GitHub
-                <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>
+            </li>
+            <li>
+              <a class="case-row" href="https://github.com/Rudolph-04/playbook_lib" target="_blank" rel="noopener" data-case="playbook">
+                <span class="case-no">02</span>
+                <span class="case-main">
+                  <span class="case-name">PlayBook</span>
+                  <span class="case-desc">PlayStation rental: 10 tables, 40 endpoints, 5 rental states.</span>
+                </span>
+                <span class="case-meta"><span>Mobile + API</span><span>2026</span><span class="case-stack">Flutter · PHP · MySQL</span></span>
+                <span class="case-open">Open file <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg></span>
               </a>
-            </div>
-
-            <figure class="sysmap" aria-label="System map: Admin and Customer use the Units, Packages, Rentals, Payments, Fines, and Reports modules">
-              <figcaption>Sys.map</figcaption>
-              <div class="sysmap-row actors">
-                <span class="node">Admin</span><span class="node">Customer</span>
-              </div>
-              <div class="sysmap-link" aria-hidden="true"></div>
-              <div class="sysmap-row modules">
-                <span class="node">Units</span><span class="node">Packages</span><span class="node">Rentals</span>
-                <span class="node">Payments</span><span class="node">Fines</span><span class="node">Reports</span>
-              </div>
-            </figure>
-          </article>
-
-          <!-- Project: SIJAPAM -->
-          <article class="project panel reveal">
-            <div class="project-body">
-              <p class="project-meta">File_03 // 2025 // Web app</p>
-              <h3>SIJAPAM</h3>
-              <p class="project-desc">
-                Sistem Informasi Penjualan Jajanan Amel: sales and stock tracking for a
-                small snack business, replacing notes kept by hand.
-              </p>
-              <ul class="project-points">
-                <li>Products, orders, and customer records in one dashboard</li>
-                <li>Sales reports with charts</li>
-                <li>AI-generated product descriptions through the Gemini API</li>
-              </ul>
-              <p class="project-stack">React 19 · TypeScript · Vite · Recharts · Gemini API</p>
-              <a class="project-link" href="https://github.com/Rudolph-04/gudang-inventory" target="_blank" rel="noopener">
-                Source on GitHub
-                <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>
+            </li>
+            <li>
+              <a class="case-row" href="https://github.com/Rudolph-04/gudang-inventory" target="_blank" rel="noopener" data-case="sijapam">
+                <span class="case-no">03</span>
+                <span class="case-main">
+                  <span class="case-name">SIJAPAM</span>
+                  <span class="case-desc">Sales and stock dashboard for a small snack business.</span>
+                </span>
+                <span class="case-meta"><span>Web prototype</span><span>2025</span><span class="case-stack">React · TypeScript · Gemini</span></span>
+                <span class="case-open">Open file <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg></span>
               </a>
-            </div>
-
-            <figure class="sysmap" aria-label="System map: Admin uses the Products, Orders, Customers, and Reports modules, with Gemini AI connected to Products">
-              <figcaption>Sys.map</figcaption>
-              <div class="sysmap-row actors">
-                <span class="node">Admin</span><span class="node node-ext">Gemini AI</span>
-              </div>
-              <div class="sysmap-link" aria-hidden="true"></div>
-              <div class="sysmap-row modules">
-                <span class="node">Products</span><span class="node">Orders</span>
-                <span class="node">Customers</span><span class="node">Reports</span>
-              </div>
-            </figure>
-          </article>
-
-          <!-- Project: Juragan Tahu -->
-          <article class="project panel reveal">
-            <div class="project-body">
-              <p class="project-meta">File_04 // 2026 // Roblox game // <span class="wip">In progress</span></p>
-              <h3>Juragan Tahu</h3>
-              <p class="project-desc">
-                A Roblox game about running a fried-tofu stall, from one cart at the market
-                to many branches. Built as a side project to practise game systems.
-              </p>
-              <ul class="project-points">
-                <li>Frying with a doneness meter: lift it at the right moment for a tip</li>
-                <li>NPC customers with their own patience, served from a queue</li>
-                <li>Drivable cart that can only sell when parked at a selling spot</li>
-              </ul>
-              <p class="project-stack">Luau · Roblox Studio · Rojo</p>
-              <a class="project-link" href="https://github.com/Rudolph-04/RObelox" target="_blank" rel="noopener">
-                Source on GitHub
-                <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg>
+            </li>
+            <li>
+              <a class="case-row" href="https://github.com/Rudolph-04/RObelox" target="_blank" rel="noopener" data-case="juragan">
+                <span class="case-no">04</span>
+                <span class="case-main">
+                  <span class="case-name">Juragan Tahu</span>
+                  <span class="case-desc">Server-authoritative frying game, still in progress.</span>
+                </span>
+                <span class="case-meta"><span>Roblox game</span><span>2026</span><span class="case-stack">Luau · Rojo</span></span>
+                <span class="case-open">Open file <svg class="i-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg></span>
               </a>
-            </div>
-
-            <figure class="sysmap" aria-label="System map: Player and NPC customers interact with the Frying, Queue, Vehicle, and Leaderstats systems">
-              <figcaption>Sys.map</figcaption>
-              <div class="sysmap-row actors">
-                <span class="node">Player</span><span class="node">NPC customer</span>
-              </div>
-              <div class="sysmap-link" aria-hidden="true"></div>
-              <div class="sysmap-row modules">
-                <span class="node">Frying</span><span class="node">Queue</span>
-                <span class="node">Vehicle</span><span class="node">Leaderstats</span>
-              </div>
-            </figure>
-          </article>
-
+            </li>
+          </ol>
+          <!-- Pratinjau diisi oleh js/case-files.js saat baris di-hover -->
+          <aside class="case-preview" aria-hidden="true"></aside>
         </div>
 
         <p class="projects-more reveal">
@@ -401,42 +340,22 @@
       <div class="container">
         <header class="section-head reveal">
           <span class="section-num">// 04</span>
-          <h2 id="skills-title">Skills</h2>
-          <p class="section-intro">What I use, grouped by where it fits in a project.</p>
+          <h2 id="skills-title">Skills, with receipts</h2>
+          <p class="section-intro">Every mark below points to a project where the skill is actually used.</p>
         </header>
 
-        <div class="skills">
-          <div class="skill-group panel reveal">
-            <h3>Analysis &amp; design</h3>
-            <ul>
-              <li>System requirements analysis</li>
-              <li>Use case &amp; activity diagrams</li>
-              <li>ERD &amp; database design</li>
-              <li>User roles &amp; feature mapping</li>
-              <li>UI flow &amp; wireframes</li>
-            </ul>
-          </div>
-          <div class="skill-group panel reveal">
-            <h3>Build</h3>
-            <ul>
-              <li>HTML, CSS, JavaScript</li>
-              <li>PHP &amp; Laravel</li>
-              <li>React &amp; TypeScript</li>
-              <li>Flutter &amp; Dart</li>
-              <li>Python (basics), Luau</li>
-            </ul>
-          </div>
-          <div class="skill-group panel reveal">
-            <h3>Data &amp; tools</h3>
-            <ul>
-              <li>MySQL &amp; SQL queries</li>
-              <li>REST API design</li>
-              <li>Git &amp; GitHub</li>
-              <li>Tailwind CSS</li>
-              <li>Microsoft Excel &amp; Word</li>
-            </ul>
-          </div>
+        <!-- js/case-files.js mengganti isi ini dengan matriks skill × project -->
+        <div id="skill-matrix" class="reveal">
+          <ul class="skill-fallback">
+            <li>Data modeling, role-based access, status flow design</li>
+            <li>PHP &amp; Laravel, native PHP REST API, Flutter &amp; Dart, React &amp; TypeScript, Luau</li>
+            <li>MySQL &amp; SQLite, Tailwind CSS, Recharts, Gemini API</li>
+          </ul>
         </div>
+        <p class="skills-also reveal">
+          Also from coursework: use case &amp; activity diagrams, UI wireframes, Git &amp; GitHub,
+          Microsoft Excel &amp; Word.
+        </p>
       </div>
     </section>
 
@@ -452,7 +371,7 @@
           </p>
         </header>
 
-        <ul class="contact-list reveal">
+        <ul class="contact-list reveal reveal-stagger">
           <li>
             <a href="https://www.linkedin.com/in/aghasha-rudolph-23bb78292" target="_blank" rel="noopener">
               <svg class="i-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
@@ -490,6 +409,9 @@
     </section>
   </main>
 
+  <!-- Dossier project (isi dibuat oleh js/case-files.js) -->
+  <dialog class="dossier" id="dossier"></dialog>
+
   <!-- ============ FOOTER ============ -->
   <footer class="site-footer">
     <div class="container footer-inner">
@@ -500,6 +422,8 @@
   </footer>
 
   <script src="js/main.js" defer></script>
+  <script src="js/case-data.js" defer></script>
+  <script src="js/case-files.js" defer></script>
   <script type="module" src="js/lanyard.js"></script>
 </body>
 </html>

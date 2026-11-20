@@ -8,7 +8,8 @@ Live: https://rudolph-04.github.io/PortoBaru/
 
 - Opening ala boot screen
 - Kartu ID 3D di lanyard, bisa di-drag dan diputar
-- Project: SIP Posyandu, PlayBook, SIJAPAM, Juragan Tahu
+- Project dalam bentuk case file (SIP Posyandu, PlayBook, SIJAPAM, Juragan Tahu): ERD, alur status, dan hak akses, diambil dari source code masing-masing
+- Matriks skill: skill mana dipakai di project mana
 
 ## Jalanin di lokal
 

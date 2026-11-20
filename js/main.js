@@ -6,6 +6,7 @@
    3. Menu hamburger (mobile) + tombol FX on/off
    4. Link navigasi aktif mengikuti section yang sedang dilihat
    5. Animasi muncul saat di-scroll (reveal) + judul ter-"decode"
+   6. Progres scroll: garis header, rail HUD, timeline Process
 
    Kartu ID 3D ada di file terpisah: js/lanyard.js
    ========================================================================== */
@@ -322,4 +323,64 @@
   document.querySelectorAll('.reveal').forEach(function (el) {
     revealObserver.observe(el);
   });
+
+  /* 6. PROGRES SCROLL ----------------------------------------------------
+     Satu fungsi yang dipanggil maksimal sekali per frame saat scroll:
+     - --scroll di <html>: garis header & rail (0..1 seluruh halaman)
+     - rail HUD: muncul setelah lewat hero, section aktif ditandai
+     - timeline Process: garis terisi sesuai posisi section di layar */
+  var rail = document.getElementById('hud-rail');
+  var railPct = document.getElementById('rail-pct');
+  var railLinks = rail ? rail.querySelectorAll('a[data-rail]') : [];
+  var hero = document.querySelector('.hero');
+  var timeline = document.getElementById('timeline');
+  var steps = timeline ? timeline.querySelectorAll('.step') : [];
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
+  var ticking = false;
+
+  if (timeline && !reduceMotion) timeline.classList.add('is-live');
+
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  function onScroll() {
+    ticking = false;
+    var vh = window.innerHeight;
+    var max = document.documentElement.scrollHeight - vh;
+    var p = max > 0 ? clamp01(window.scrollY / max) : 0;
+    root.style.setProperty('--scroll', p.toFixed(4));
+
+    if (rail) {
+      rail.classList.toggle('is-on', !!hero && hero.getBoundingClientRect().bottom < vh * 0.5);
+      railPct.textContent = String(Math.round(p * 100)).padStart(3, '0');
+      var current = null;
+      sections.forEach(function (s) {
+        if (s.getBoundingClientRect().top < vh * 0.5) current = s.id;
+      });
+      railLinks.forEach(function (a) { a.classList.toggle('is-active', a.dataset.rail === current); });
+    }
+
+    if (timeline) {
+      // 0 saat bagian atas timeline di 80% tinggi layar, 1 saat bagian bawahnya di 55%
+      var r = timeline.getBoundingClientRect();
+      var tp = reduceMotion ? 1 : clamp01((vh * 0.8 - r.top) / (r.height + vh * 0.25));
+      timeline.style.setProperty('--progress', tp.toFixed(4));
+      var vertical = window.matchMedia('(max-width: 960px)').matches;
+      steps.forEach(function (step, i) {
+        // Titik langkah ke-i ada di i/n sepanjang garis (horizontal) atau di posisi atasnya (vertikal)
+        var at = vertical ? (step.offsetTop / r.height) : (i / steps.length);
+        step.classList.toggle('is-on', tp > at + 0.02 || tp >= 1);
+      });
+    }
+  }
+
+  function requestTick() {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(onScroll);
+    }
+  }
+
+  window.addEventListener('scroll', requestTick, { passive: true });
+  window.addEventListener('resize', requestTick);
+  onScroll();
 })();
