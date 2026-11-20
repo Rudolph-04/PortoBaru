@@ -1050,11 +1050,11 @@ function drawFront(photo) {
   ctx.textBaseline = 'alphabetic';
   ctx.font = `700 40px ${DISPLAY_FONT}`;
   ctx.fillStyle = COLORS.cyan;
-  ctx.fillText('A.R SYSTEMS', 72, 160);
+  ctx.fillText('PERSONNEL ID', 72, 160);
   ctx.textAlign = 'right';
   ctx.font = `500 24px ${MONO_FONT}`;
   ctx.fillStyle = COLORS.muted;
-  ctx.fillText('ID // NO.001', W - 72, 158);
+  ctx.fillText('NO. 001', W - 72, 158);
   ctx.textAlign = 'left';
 
   ctx.fillStyle = COLORS.magenta;
@@ -1170,13 +1170,7 @@ function drawFrontBottom(ctx, W) {
   wrapText(ctx, 'When this card joins a project: map the current process, model the data, then ship the features that remove busywork.', 100, 1242, W - 200, 42);
 
   // Barcode & stat
-  const rand = rng(2026);
-  ctx.fillStyle = 'rgba(232, 241, 255, 0.85)';
-  for (let x = 72; x < 440;) {
-    const bw = 2 + Math.floor(rand() * 7);
-    if (rand() > 0.3) ctx.fillRect(x, 1432, bw, 84);
-    x += bw + 2 + Math.floor(rand() * 4);
-  }
+  drawBarcode(ctx, 72, 1432, 368, 84, 2026);
   ctx.font = `500 20px ${MONO_FONT}`;
   ctx.fillStyle = COLORS.dim;
   ctx.fillText('AR-2026-SI-06', 72, 1550);
@@ -1196,98 +1190,137 @@ function drawStat(ctx, label, value, color, right, y) {
   ctx.textAlign = 'left';
 }
 
+// Sisi belakang dibuat seperti kartu akses asli: formal, tenang, satu warna aksen
 function drawBack() {
   const [c, ctx] = makeCanvas(TEX_W, TEX_H);
   const W = TEX_W;
+  const H = TEX_H;
   const cx = W / 2;
-  drawCardBase(ctx, W, TEX_H);
 
-  hazardStripe(ctx, 72, 140, W - 144, 34);
-  hazardStripe(ctx, 72, 1500, W - 144, 34);
-
-  // Logo A.R SYSTEMS: hexagon + monogram "AR"
-  const cy = 600;
-  ctx.save();
-  ctx.shadowColor = COLORS.cyan;
-  ctx.shadowBlur = 30;
-  ctx.strokeStyle = COLORS.cyan;
-  ctx.lineWidth = 10;
-  hexagon(ctx, cx, cy, 250, Math.PI / 6);
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
-  ctx.lineWidth = 3;
-  hexagon(ctx, cx, cy, 212, Math.PI / 6);
+  // Latar polos + bingkai tipis
+  ctx.fillStyle = '#0b0b10';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(232, 241, 255, 0.16)';
+  ctx.lineWidth = 2;
+  chamfer(ctx, 40, 40, W - 80, H - 80, 52);
   ctx.stroke();
 
-  ctx.fillStyle = COLORS.magenta;
-  hexagon(ctx, cx, cy - 250, 18, Math.PI / 6);
+  // Lubang klip
+  ctx.fillStyle = '#000';
+  roundRect(ctx, W / 2 - 90, 72, 180, 30, 15);
   ctx.fill();
-  hexagon(ctx, cx, cy + 250, 18, Math.PI / 6);
-  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+  ctx.stroke();
 
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `700 200px ${DISPLAY_FONT}`;
-  ctx.shadowColor = 'rgba(0, 240, 255, 0.7)';
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = COLORS.text;
-  ctx.fillText('AR', cx, cy + 4);
-  ctx.restore();
-  ctx.fillStyle = COLORS.magenta;
-  ctx.fillRect(cx - 90, cy + 100, 180, 8);
+  // Strip magnetik selebar kartu
+  const stripe = ctx.createLinearGradient(0, 150, 0, 262);
+  stripe.addColorStop(0, '#040405');
+  stripe.addColorStop(0.5, '#18181e');
+  stripe.addColorStop(1, '#040405');
+  ctx.fillStyle = stripe;
+  ctx.fillRect(0, 150, W, 112);
 
-  // Nama korporat
+  // Logo: simpul-simpul yang saling terhubung (gambaran alur data), tanpa huruf
+  drawNodeMark(ctx, cx, 600, 170);
+
+  // Judul kartu
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  fitFont(ctx, 'A.R SYSTEMS', 700, DISPLAY_FONT, 100, W - 200);
-  ctx.fillStyle = COLORS.cyan;
-  ctx.fillText('A.R SYSTEMS', cx, 980);
-  ctx.font = `500 28px ${MONO_FONT}`;
+  ctx.fillStyle = COLORS.text;
+  ctx.font = `600 64px ${DISPLAY_FONT}`;
+  ctx.letterSpacing = '10px'; // diabaikan browser yang belum mendukung, tidak masalah
+  ctx.fillText('ACCESS CARD', cx + 5, 890);
+  ctx.letterSpacing = '0px';
+  ctx.font = `500 24px ${MONO_FONT}`;
   ctx.fillStyle = COLORS.muted;
-  ctx.fillText('INFORMATION SYSTEMS DIVISION', cx, 1030);
+  ctx.fillText('AUTHORIZED PERSONNEL ONLY', cx, 938);
   ctx.textAlign = 'left';
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.strokeStyle = 'rgba(232, 241, 255, 0.14)';
   ctx.lineWidth = 2;
-  line(ctx, 140, 1070, W - 140, 1070);
+  line(ctx, 110, 990, W - 110, 990);
 
-  // Data pemilik
-  const rows = [
-    ['OWNER', 'AGHASHA RUDOLPH'],
-    ['ROLE', 'SYSTEM ANALYST'],
-    ['STACK', 'LARAVEL / FLUTTER / REACT'],
-    ['GITHUB', 'RUDOLPH-04']
-  ];
-  ctx.font = `500 27px ${MONO_FONT}`;
-  rows.forEach(([label, value], i) => {
-    const y = 1130 + i * 48;
-    const prefix = label + ' ' + '.'.repeat(9 - label.length) + ' ';
-    ctx.fillStyle = COLORS.dim;
-    ctx.fillText(prefix, 110, y);
-    ctx.fillStyle = COLORS.text;
-    ctx.fillText(value, 110 + ctx.measureText(prefix).width, y);
-  });
+  // Kolom tanda tangan
+  ctx.font = `500 18px ${MONO_FONT}`;
+  ctx.fillStyle = COLORS.dim;
+  ctx.fillText('AUTHORIZED SIGNATURE', 110, 1036);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(110, 1052, W - 220, 92);
+  ctx.clip();
+  ctx.fillStyle = '#9ea4b0';
+  ctx.fillRect(110, 1052, W - 220, 92);
+  ctx.strokeStyle = 'rgba(11, 11, 16, 0.08)';
+  ctx.lineWidth = 2;
+  for (let x = 110 - 92; x < W - 110; x += 14) line(ctx, x, 1144, x + 92, 1052);
+  ctx.restore();
 
+  // Ketentuan kartu
   ctx.font = `500 21px ${MONO_FONT}`;
   ctx.fillStyle = COLORS.dim;
-  ctx.fillText('PROPERTY OF A.R SYSTEMS.', 110, 1400);
-  ctx.fillText('IF FOUND, RETURN TO OWNER.', 110, 1432);
+  ['This card is non-transferable and must be',
+   'presented on request. If found, please',
+   'return it to the cardholder.'].forEach((text, i) => ctx.fillText(text, 110, 1200 + i * 32));
 
-  // Pola titik-titik dekoratif
-  const rand = rng(7);
-  const cell = 12;
-  const mx = W - 110 - cell * 10;
-  ctx.fillStyle = COLORS.cyan;
-  for (let gy = 0; gy < 10; gy++) {
-    for (let gx = 0; gx < 10; gx++) {
-      if (rand() > 0.5) ctx.fillRect(mx + gx * cell, 1342 + gy * cell, cell - 2, cell - 2);
-    }
-  }
+  // Barcode + nomor kartu (sama dengan sisi depan)
+  drawBarcode(ctx, 110, 1330, 400, 90, 2026);
+  ctx.font = `500 20px ${MONO_FONT}`;
+  ctx.fillStyle = COLORS.dim;
+  ctx.fillText('AR-2026-SI-06', 110, 1452);
+
+  // Pemegang kartu
+  ctx.textAlign = 'right';
+  ctx.font = `500 18px ${MONO_FONT}`;
+  ctx.fillStyle = COLORS.dim;
+  ctx.fillText('CARDHOLDER', W - 110, 1360);
+  ctx.font = `600 32px ${DISPLAY_FONT}`;
+  ctx.fillStyle = COLORS.text;
+  ctx.fillText('AGHASHA RUDOLPH', W - 110, 1400);
+  ctx.font = `500 20px ${MONO_FONT}`;
+  ctx.fillStyle = COLORS.muted;
+  ctx.fillText('INFORMATION SYSTEMS', W - 110, 1434);
+  ctx.textAlign = 'left';
+
+  // Satu-satunya warna aksen
+  ctx.fillStyle = COLORS.magenta;
+  ctx.fillRect(110, H - 130, 64, 4);
 
   return c;
+}
+
+// Logo abstrak: lingkaran berisi jaringan simpul. Simpul tengah = sistemnya,
+// tiga simpul luar = pengguna/proses yang terhubung ke sistem.
+function drawNodeMark(ctx, cx, cy, r) {
+  ctx.save();
+  ctx.strokeStyle = COLORS.text;
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const nodes = [[0, -0.55], [-0.48, 0.3], [0.48, 0.3], [0, 0.02]].map(([x, y]) => [cx + x * r, cy + y * r]);
+  ctx.lineWidth = 5;
+  [[0, 1], [1, 2], [2, 0], [0, 3], [1, 3], [2, 3]].forEach(([a, b]) => {
+    line(ctx, nodes[a][0], nodes[a][1], nodes[b][0], nodes[b][1]);
+  });
+  nodes.forEach(([x, y], i) => {
+    ctx.beginPath();
+    ctx.arc(x, y, i === 3 ? 16 : 22, 0, Math.PI * 2);
+    ctx.fillStyle = i === 3 ? COLORS.magenta : COLORS.text;
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+// Barcode dekoratif; seed tetap supaya polanya tidak berubah tiap dibuka
+function drawBarcode(ctx, x, y, w, h, seed) {
+  const rand = rng(seed);
+  ctx.fillStyle = 'rgba(232, 241, 255, 0.85)';
+  for (let bx = x; bx < x + w;) {
+    const bw = 2 + Math.floor(rand() * 7);
+    if (rand() > 0.3) ctx.fillRect(bx, y, bw, h);
+    bx += bw + 2 + Math.floor(rand() * 4);
+  }
 }
 
 // Motif tali: tulisan berulang di sepanjang pita
@@ -1306,7 +1339,7 @@ function drawStrap() {
   ctx.textBaseline = 'middle';
   ctx.font = `700 72px ${DISPLAY_FONT}`;
   ctx.fillStyle = COLORS.text;
-  ctx.fillText('A.R SYSTEMS', -110, 4);
+  ctx.fillText('AUTHORIZED', -110, 4);
   ctx.fillStyle = COLORS.magenta;
   ctx.fillText('//', 330, 4);
   ctx.restore();
@@ -1393,26 +1426,6 @@ function line(ctx, x1, y1, x2, y2) {
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
-}
-
-function hazardStripe(ctx, x, y, w, h) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, y, w, h);
-  ctx.clip();
-  ctx.fillStyle = '#111118';
-  ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = COLORS.yellow;
-  for (let sx = x - h; sx < x + w + h; sx += 44) {
-    ctx.beginPath();
-    ctx.moveTo(sx, y + h);
-    ctx.lineTo(sx + 22, y + h);
-    ctx.lineTo(sx + 22 + h, y);
-    ctx.lineTo(sx + h, y);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
