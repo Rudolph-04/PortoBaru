@@ -1085,7 +1085,7 @@ function drawPhotoWindow(ctx, photo, px, py, pw, ph) {
     ctx.drawImage(photo, px + (pw - dw) / 2, py + (ph - dh) / 2, dw, dh);
   }
   ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.22)';
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.11)'; // tint tipis supaya warna kulit tetap natural
   ctx.fillRect(px, py, pw, ph);
   ctx.globalCompositeOperation = 'source-over';
   const fade = ctx.createLinearGradient(0, py + ph * 0.55, 0, py + ph);
