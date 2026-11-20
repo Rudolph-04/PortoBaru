@@ -37,6 +37,12 @@ const STEP = 1 / 120;           // fisika dihitung 120x per detik
 const ITERATIONS = 12;          // makin banyak = tali makin kaku & stabil
 const TWIST_STIFFNESS = 6;      // seberapa kuat tali yang terpuntir menarik kartu balik
 const TWIST_DAMPING = 0.012;    // redaman putaran, supaya akhirnya berhenti
+// Klik kartu = dibalik. Pegas khusus yang lebih kuat & teredam, supaya kartu
+// berbalik ~0,45 detik, kelewatan sedikit (~12%), lalu diam menghadap belakang.
+const FLIP_STIFFNESS = 70;                            // ω ≈ √70 ≈ 8,4 rad/s
+const FLIP_DAMPING = (zeta) => (2 * zeta * Math.sqrt(FLIP_STIFFNESS)) * STEP;
+const CLICK_MAX_MOVE = 6;       // px: lebih dari ini dianggap drag, bukan klik
+const CLICK_MAX_TIME = 400;     // ms
 const STRAP_W = 0.2;            // lebar tali
 const STRAP_REPEAT = STRAP_W * 4; // panjang satu ulangan motif tali
 
@@ -244,6 +250,11 @@ async function init() {
   // Total putaran kartu terhadap arah awal (radian). 2π = tali terpuntir 1 kali.
   let twistTotal = 0;
   let lastYaw = 0;
+  // Arah diam kartu. 0 = depan menghadap layar; ±π = belakang menghadap layar.
+  // Klik menggeser arah diam ini 180°, lalu pegas memutar kartu ke sana.
+  let twistRest = 0;
+  let flipping = false;
+  let flipUntil = 0;
 
   /* ---------- Fisika ---------- */
 
@@ -300,6 +311,20 @@ async function init() {
     cardFrame();
     lastYaw = cardYaw();
     twistTotal = 0;
+    twistRest = 0;
+    flipping = false;
+  }
+
+  // Balik kartu. dir = +1 / -1: arah putar (sisi kanan diklik -> sisi kanan
+  // terdorong ke belakang). Pengait dianggap punya swivel, jadi tali tidak
+  // ikut terpuntir saat kartu dibalik.
+  function flipCard(dir) {
+    if (!started) return;
+    twistRest += Math.PI * dir;
+    flipping = true;
+    flipUntil = performance.now() + 2000;
+    hideHint();
+    updateRunning();
   }
 
   function step(dt, t) {
@@ -343,7 +368,13 @@ async function init() {
     if (dYaw < -Math.PI) dYaw += Math.PI * 2;
     lastYaw = yaw;
     twistTotal += dYaw;
-    const alpha = -TWIST_STIFFNESS * twistTotal * dt * dt - TWIST_DAMPING * dYaw;
+    const err = twistTotal - twistRest;
+    if (flipping && ((Math.abs(err) < 0.08 && Math.abs(dYaw) < 0.002) || performance.now() > flipUntil)) {
+      flipping = false;
+    }
+    const alpha = flipping
+      ? -FLIP_STIFFNESS * err * dt * dt - FLIP_DAMPING(reduceMotion ? 1 : 0.55) * dYaw
+      : -TWIST_STIFFNESS * err * dt * dt - TWIST_DAMPING * dYaw;
     P[BL].p.addScaledVector(n, alpha * CARD_W / 2);
     P[BR].p.addScaledVector(n, -alpha * CARD_W / 2);
 
@@ -415,7 +446,8 @@ async function init() {
     strapPoints[0].copy(anchor).add(tmp.set(0, 3, 0));
     for (let i = 0; i < SEGMENTS; i++) strapPoints[i + 1].copy(P[i].p);
     strapPoints[SEGMENTS + 1].copy(P[H].p).addScaledVector(u, 0.16);
-    strap.update(strapPoints, twistTotal);
+    // Saat dibalik lewat klik, swivel di pengait yang berputar -> tali tetap rata
+    strap.update(strapPoints, flipping ? 0 : twistTotal - twistRest);
   }
 
   /* ---------- Ukuran layar ---------- */
@@ -485,6 +517,7 @@ async function init() {
     pointerVel.set(0, 0, 0);
 
     dragging = true;
+    flipping = false; // dipegang -> pegas flip berhenti, kartu ikut tangan
     hero.classList.add('is-grabbing');
     hideHint();
     updateRunning();
@@ -533,10 +566,28 @@ async function init() {
   // tembus klik. Kalau pointer kena kartu -> mulai drag. Kalau tidak -> biarkan
   // klik/scroll/seleksi teks berjalan normal.
 
+  // Klik / tap: pointer hampir tidak bergerak dan cepat dilepas -> kartu dibalik
+  let press = null;
+  function pressStart(x, y) {
+    press = { x, y, t: performance.now(), dir: grab.lx >= 0 ? 1 : -1 };
+  }
+  function pressEnd(x, y) {
+    if (!press) return;
+    const isClick = Math.hypot(x - press.x, y - press.y) < CLICK_MAX_MOVE &&
+      performance.now() - press.t < CLICK_MAX_TIME;
+    const dir = press.dir;
+    press = null;
+    if (isClick) flipCard(dir);
+  }
+  function pressMove(x, y) {
+    if (press && Math.hypot(x - press.x, y - press.y) >= CLICK_MAX_MOVE) press = null;
+  }
+
   // Mouse & pen pakai Pointer Events
   hero.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' || e.button !== 0) return;
     if (startDrag(e.clientX, e.clientY)) {
+      pressStart(e.clientX, e.clientY);
       hero.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
@@ -546,6 +597,7 @@ async function init() {
   hero.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'touch') return;
     if (dragging) {
+      pressMove(e.clientX, e.clientY);
       moveDrag(e.clientX, e.clientY);
       return;
     }
@@ -557,32 +609,57 @@ async function init() {
     });
   });
 
-  hero.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') endDrag(); });
-  hero.addEventListener('pointercancel', (e) => { if (e.pointerType !== 'touch') endDrag(); });
+  hero.addEventListener('pointerup', (e) => {
+    if (e.pointerType === 'touch') return;
+    endDrag();
+    pressEnd(e.clientX, e.clientY);
+  });
+  hero.addEventListener('pointercancel', (e) => {
+    if (e.pointerType === 'touch') return;
+    press = null;
+    endDrag();
+  });
   hero.addEventListener('pointerleave', () => hero.classList.remove('is-hovering'));
 
   // Sentuhan: halaman tetap bisa di-scroll, kecuali jari tepat menyentuh kartu
   hero.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
     const t = e.touches[0];
-    if (startDrag(t.clientX, t.clientY)) e.preventDefault();
+    if (startDrag(t.clientX, t.clientY)) {
+      pressStart(t.clientX, t.clientY);
+      e.preventDefault();
+    }
   }, { passive: false });
 
   hero.addEventListener('touchmove', (e) => {
     if (!dragging) return;
     e.preventDefault();
     const t = e.touches[0];
+    pressMove(t.clientX, t.clientY);
     moveDrag(t.clientX, t.clientY);
   }, { passive: false });
 
-  hero.addEventListener('touchend', endDrag);
-  hero.addEventListener('touchcancel', endDrag);
+  hero.addEventListener('touchend', (e) => {
+    if (!dragging) return;
+    endDrag();
+    const t = e.changedTouches[0];
+    if (t) pressEnd(t.clientX, t.clientY);
+  });
+  hero.addEventListener('touchcancel', () => {
+    press = null;
+    endDrag();
+  });
 
   // Pindah antara layout desktop & HP -> posisi jangkar ikut pindah
   desktopQuery.addEventListener('change', resize);
 
-  // Keyboard: panah kiri/kanan = putar, atas/bawah = jungkir
+  // Keyboard: Enter/Spasi = balik kartu, panah kiri/kanan = putar, atas/bawah = jungkir
   canvas.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && started) {
+      e.preventDefault();
+      flipCard(1);
+      return;
+    }
     const keys = { ArrowLeft: [-0.04, 0], ArrowRight: [0.04, 0], ArrowUp: [0, -0.03], ArrowDown: [0, 0.03] };
     const k = keys[e.key];
     if (!k || !started) return;
@@ -593,7 +670,11 @@ async function init() {
   });
 
   function showHint() {
-    if (hint && !interacted) hint.classList.add('is-visible');
+    if (!hint || interacted) return;
+    hint.textContent = window.matchMedia('(pointer: coarse)').matches
+      ? '[ Tap to flip · drag to swing ]'
+      : '[ Click to flip · drag to swing ]';
+    hint.classList.add('is-visible');
   }
 
   function hideHint() {
