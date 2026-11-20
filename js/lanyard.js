@@ -43,8 +43,8 @@ const STRAP_REPEAT = STRAP_W * 4; // panjang satu ulangan motif tali
 const TEX_W = 1024;
 const TEX_H = Math.round(TEX_W * CARD_H / CARD_W);
 
-// Posisi jendela foto di gambar kartu depan (dalam piksel texture)
-const PHOTO = { x: 72, y: 204, w: TEX_W - 144, h: 720, cut: 40 };
+// Area yang diberi efek glitch = seluruh muka depan kartu (dalam piksel texture)
+const PHOTO = { x: 0, y: 0, w: TEX_W, h: TEX_H };
 
 const COLORS = {
   bg: '#08080f',
@@ -62,7 +62,7 @@ const MONO_FONT = '"JetBrains Mono", Consolas, monospace';
 /* ---------- Shader glitch untuk foto di kartu ----------
    Shader = program kecil yang jalan di GPU untuk tiap piksel.
    uGlitch (0..1) mengatur seberapa parah efeknya:
-   0.05 = tenang, 0.4 = glitch kecil, 1 = error berat (datamosh, noise, merah).
+   0 = tenang (foto bersih), 0.4 = glitch kecil, 1 = error berat (datamosh, noise, merah).
    uError = 1 selama frame rusak sesaat (diatur JS, maksimal 2x per error). */
 const GLITCH_VERTEX = /* glsl */ `
   varying vec2 vUv;
@@ -116,7 +116,7 @@ const GLITCH_FRAGMENT = /* glsl */ `
 
     // 4. Bintik noise statis
     vec2 cell = floor(vUv * vec2(240.0, 200.0));
-    float speck = step(1.0 - 0.12 * g * g, hash2(cell + t));
+    float speck = step(0.3, g) * step(1.0 - 0.08 * g * g, hash2(cell + t));
     col = mix(col, vec3(step(0.5, hash2(cell * 1.3 + t))), speck * 0.85);
 
     // 5. Rona merah saat error berat (naik-turun halus, tidak berkedip)
@@ -135,9 +135,9 @@ const GLITCH_FRAGMENT = /* glsl */ `
     float lineMask = (1.0 - smoothstep(0.0, 0.004, abs(vUv.y - ly))) * step(0.6, g);
     col = mix(col, vec3(1.0, 0.35, 0.45), lineMask * 0.9);
 
-    // 8. Garis scan berjalan pelan + kecerahan bergetar tipis
+    // 8. Garis scan + kecerahan bergetar tipis (hanya saat glitch; saat tenang foto bersih)
     float s = fract(vUv.y - uTime * 0.35);
-    col += smoothstep(0.0, 0.015, s) * (1.0 - smoothstep(0.015, 0.05, s)) * 0.04;
+    col += smoothstep(0.0, 0.015, s) * (1.0 - smoothstep(0.015, 0.05, s)) * 0.04 * smoothstep(0.0, 0.2, g);
     col *= 1.0 + (hash(t + 3.0) - 0.5) * 0.1 * g;
 
     gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
@@ -153,7 +153,7 @@ if (stage && canvas && hasWebGL()) {
    SETUP
    ========================================================================== */
 async function init() {
-  const [photo] = await Promise.all([loadImage('assets/img/profile.jpg'), loadFonts()]);
+  const [photo] = await Promise.all([loadImage('assets/img/card-photo.jpg'), loadFonts()]);
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -177,8 +177,8 @@ async function init() {
   const strap = makeStrap(strapTex);
   scene.add(card, clip, strap.mesh);
 
-  // Layar foto ber-glitch, ditempel tepat di atas jendela foto kartu
-  const screen = makePhotoScreen(makeTexture(drawPhotoLayer(photo), aniso));
+  // Lapisan glitch di atas muka depan kartu (pakai gambar depan yang sama)
+  const screen = makePhotoScreen(frontTex);
   card.add(screen.mesh);
 
   // Kilat listrik di pinggir layar (tidak dibuat kalau animasi dimatikan pengguna)
@@ -633,7 +633,8 @@ async function init() {
     }
     if (now >= fx.nextOverload) overload(now);
 
-    let target = (dragging || hero.classList.contains('is-hovering')) ? 0.2 : 0.05;
+    // Tenang = 0 (foto bersih total); naik sedikit saat kartu disentuh
+    let target = (dragging || hero.classList.contains('is-hovering')) ? 0.12 : 0;
     if (now < fx.until) target = Math.max(target, fx.peak);
     // Naik cepat, turun pelan
     fx.level += (target - fx.level) * (target > fx.level ? 0.5 : 0.12);
@@ -834,13 +835,13 @@ function makeStrap(texture) {
   return { mesh, update };
 }
 
-// Bidang tipis di atas jendela foto kartu, digambar oleh shader glitch
+// Bidang tipis di atas muka depan kartu, digambar oleh shader glitch
 function makePhotoScreen(texture) {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTex: { value: texture },
       uTime: { value: 0 },
-      uGlitch: { value: 0.05 },
+      uGlitch: { value: 0 },
       uError: { value: 0 },
       uSeed: { value: Math.floor(Math.random() * 100) }
     },
@@ -1097,178 +1098,49 @@ function makeTexture(source, anisotropy) {
    DESAIN KARTU (digambar dengan Canvas 2D)
    ========================================================================== */
 
-// Latar, bingkai neon, dan lubang klip: sama untuk sisi depan & belakang
-function drawCardBase(ctx, W, H) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.06)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= W; x += 32) line(ctx, x + 0.5, 0, x + 0.5, H);
-  for (let y = 0; y <= H; y += 32) line(ctx, 0, y + 0.5, W, y + 0.5);
-
-  ctx.save();
-  ctx.shadowColor = COLORS.cyan;
-  ctx.shadowBlur = 18;
-  ctx.strokeStyle = COLORS.cyan;
-  ctx.lineWidth = 5;
-  chamfer(ctx, 22, 22, W - 44, H - 44, 64);
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.22)';
-  ctx.lineWidth = 2;
-  chamfer(ctx, 40, 40, W - 80, H - 80, 52);
-  ctx.stroke();
-
-  // Lubang tempat klip
-  ctx.fillStyle = '#000';
-  roundRect(ctx, W / 2 - 90, 72, 180, 30, 15);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
-
+// Sisi depan: foto penuh satu kartu + nama. Sengaja tanpa ornamen lain.
 function drawFront(photo) {
   const [c, ctx] = makeCanvas(TEX_W, TEX_H);
   const W = TEX_W;
-  drawCardBase(ctx, W, TEX_H);
+  const H = TEX_H;
 
-  // Kepala kartu
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = `700 40px ${DISPLAY_FONT}`;
-  ctx.fillStyle = COLORS.cyan;
-  ctx.fillText('PERSONNEL ID', 72, 160);
-  ctx.textAlign = 'right';
-  ctx.font = `500 24px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.muted;
-  ctx.fillText('NO. 001', W - 72, 158);
-  ctx.textAlign = 'left';
-
-  ctx.fillStyle = COLORS.magenta;
-  ctx.fillRect(72, 180, W - 144, 3);
-  ctx.fillStyle = COLORS.cyan;
-  ctx.fillRect(W - 132, 178, 60, 7);
-
-  // Jendela foto versi diam. Versi glitch digambar shader tepat di atasnya;
-  // yang ini tetap ada sebagai cadangan kalau shader gagal jalan.
-  drawPhotoWindow(ctx, photo, PHOTO.x, PHOTO.y, PHOTO.w, PHOTO.h);
-
-  // Level: 6 hexagon = semester 6
-  drawFrontBottom(ctx, W);
-  return c;
-}
-
-// Foto + efek warna + scanline + label, di dalam bingkai bersudut miring
-function drawPhotoWindow(ctx, photo, px, py, pw, ph) {
-  ctx.save();
-  chamfer(ctx, px, py, pw, ph, PHOTO.cut);
-  ctx.clip();
-  ctx.fillStyle = '#11111c';
-  ctx.fillRect(px, py, pw, ph);
+  ctx.fillStyle = '#0b0b10';
+  ctx.fillRect(0, 0, W, H);
   if (photo) {
-    const scale = Math.max(pw / photo.width, ph / photo.height);
+    const scale = Math.max(W / photo.width, H / photo.height);
     const dw = photo.width * scale;
     const dh = photo.height * scale;
-    ctx.drawImage(photo, px + (pw - dw) / 2, py + (ph - dh) / 2, dw, dh);
+    ctx.drawImage(photo, (W - dw) / 2, (H - dh) / 2, dw, dh);
   }
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.11)'; // tint tipis supaya warna kulit tetap natural
-  ctx.fillRect(px, py, pw, ph);
-  ctx.globalCompositeOperation = 'source-over';
-  const fade = ctx.createLinearGradient(0, py + ph * 0.55, 0, py + ph);
-  fade.addColorStop(0, 'rgba(8, 8, 15, 0)');
-  fade.addColorStop(1, 'rgba(8, 8, 15, 0.5)');
+
+  // Gradasi gelap di bagian bawah supaya nama tetap terbaca
+  const fade = ctx.createLinearGradient(0, H * 0.55, 0, H);
+  fade.addColorStop(0, 'rgba(5, 5, 6, 0)');
+  fade.addColorStop(1, 'rgba(5, 5, 6, 0.92)');
   ctx.fillStyle = fade;
-  ctx.fillRect(px, py, pw, ph);
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.07)';
-  for (let y = py; y < py + ph; y += 6) ctx.fillRect(px, y, pw, 2);
-  ctx.restore();
+  ctx.fillRect(0, H * 0.55, W, H * 0.45);
 
-  ctx.strokeStyle = COLORS.cyan;
-  ctx.lineWidth = 3;
-  chamfer(ctx, px, py, pw, ph, 40);
-  ctx.stroke();
+  // Lubang klip (bagian fisik kartu)
+  ctx.fillStyle = '#000';
+  roundRect(ctx, W / 2 - 90, 72, 180, 30, 15);
+  ctx.fill();
 
-}
-
-// Canvas terpisah yang isinya cuma jendela foto, untuk shader glitch.
-// Area di luar bingkai miring dibiarkan transparan.
-function drawPhotoLayer(photo) {
-  const [c, ctx] = makeCanvas(PHOTO.w, PHOTO.h);
-  drawPhotoWindow(ctx, photo, 0, 0, PHOTO.w, PHOTO.h);
-  return c;
-}
-
-// Bagian bawah kartu depan: level, nama, tipe, kotak efek, barcode, stat
-function drawFrontBottom(ctx, W) {
-  // Level: 6 hexagon = semester 6
-  ctx.font = `700 28px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.magenta;
-  ctx.fillText('LV', 72, 990);
+  // Nama, dua baris di kiri bawah
   ctx.save();
-  ctx.shadowColor = COLORS.cyan;
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = COLORS.cyan;
-  for (let i = 0; i < 6; i++) {
-    hexagon(ctx, 140 + i * 46, 980, 16, Math.PI / 6);
-    ctx.fill();
-  }
-  ctx.restore();
-  ctx.textAlign = 'right';
-  ctx.font = `500 24px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText('SEMESTER 06', W - 72, 990);
-  ctx.textAlign = 'left';
-
-  // Nama & tipe
-  ctx.save();
-  fitFont(ctx, 'AGHASHA RUDOLPH', 700, DISPLAY_FONT, 92, W - 144);
-  ctx.shadowColor = 'rgba(0, 240, 255, 0.6)';
+  ctx.textBaseline = 'alphabetic';
+  const size = Math.min(
+    fitFont(ctx, 'AGHASHA', 700, DISPLAY_FONT, 150, W - 160),
+    fitFont(ctx, 'RUDOLPH', 700, DISPLAY_FONT, 150, W - 160)
+  );
+  ctx.font = `700 ${size}px ${DISPLAY_FONT}`;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
   ctx.shadowBlur = 14;
   ctx.fillStyle = COLORS.text;
-  ctx.fillText('AGHASHA RUDOLPH', 72, 1072);
+  ctx.fillText('AGHASHA', 80, H - 90 - size * 0.92);
+  ctx.fillText('RUDOLPH', 80, H - 90);
   ctx.restore();
 
-  ctx.font = `500 28px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.magenta;
-  ctx.fillText('[ SYSTEM ANALYST / APP BUILDER ]', 72, 1120);
-
-  // Kotak "efek" ala trading card
-  chamfer(ctx, 72, 1150, W - 144, 246, 28);
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.05)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.font = `700 22px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.cyan;
-  ctx.fillText('EFFECT //', 100, 1194);
-  ctx.font = `500 31px ${DISPLAY_FONT}`;
-  ctx.fillStyle = '#d5def0';
-  wrapText(ctx, 'When this card joins a project: map the current process, model the data, then ship the features that remove busywork.', 100, 1242, W - 200, 42);
-
-  // Barcode & stat
-  drawBarcode(ctx, 72, 1432, 368, 84, 2026);
-  ctx.font = `500 20px ${MONO_FONT}`;
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText('AR-2026-SI-06', 72, 1550);
-
-  drawStat(ctx, 'LOGIC ', '2400', COLORS.cyan, W - 72, 1470);
-  drawStat(ctx, 'BUILD ', '2100', COLORS.magenta, W - 72, 1520);
-}
-
-function drawStat(ctx, label, value, color, right, y) {
-  ctx.textAlign = 'right';
-  ctx.font = `700 34px ${MONO_FONT}`;
-  ctx.fillStyle = color;
-  ctx.fillText(value, right, y);
-  const valueWidth = ctx.measureText(value).width;
-  ctx.fillStyle = COLORS.dim;
-  ctx.fillText(label, right - valueWidth, y);
-  ctx.textAlign = 'left';
+  return c;
 }
 
 // Sisi belakang = easter egg: hitam polos, satu logo merah, satu baris teks kecil.
@@ -1325,17 +1197,6 @@ function drawNodeMark(ctx, cx, cy, r, color = COLORS.text, accent = COLORS.magen
     ctx.fill();
   });
   ctx.restore();
-}
-
-// Barcode dekoratif; seed tetap supaya polanya tidak berubah tiap dibuka
-function drawBarcode(ctx, x, y, w, h, seed) {
-  const rand = rng(seed);
-  ctx.fillStyle = 'rgba(232, 241, 255, 0.85)';
-  for (let bx = x; bx < x + w;) {
-    const bw = 2 + Math.floor(rand() * 7);
-    if (rand() > 0.3) ctx.fillRect(bx, y, bw, h);
-    bx += bw + 2 + Math.floor(rand() * 4);
-  }
 }
 
 // Motif tali: tulisan berulang di sepanjang pita
@@ -1403,18 +1264,6 @@ function makeCanvas(w, h) {
   return [c, c.getContext('2d')];
 }
 
-// Persegi panjang dengan sudut kanan-atas & kiri-bawah terpotong miring
-function chamfer(ctx, x, y, w, h, cut) {
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + w - cut, y);
-  ctx.lineTo(x + w, y + cut);
-  ctx.lineTo(x + w, y + h);
-  ctx.lineTo(x + cut, y + h);
-  ctx.lineTo(x, y + h - cut);
-  ctx.closePath();
-}
-
 function roundRect(ctx, x, y, w, h, radius) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -1425,37 +1274,11 @@ function roundRect(ctx, x, y, w, h, radius) {
   ctx.closePath();
 }
 
-function hexagon(ctx, cx, cy, radius, rotation) {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = rotation + (i * Math.PI) / 3;
-    const x = cx + radius * Math.cos(a);
-    const y = cy + radius * Math.sin(a);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-}
-
 function line(ctx, x1, y1, x2, y2) {
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
-}
-
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  let lineText = '';
-  for (const word of text.split(' ')) {
-    const test = lineText ? lineText + ' ' + word : word;
-    if (ctx.measureText(test).width > maxWidth && lineText) {
-      ctx.fillText(lineText, x, y);
-      lineText = word;
-      y += lineHeight;
-    } else {
-      lineText = test;
-    }
-  }
-  if (lineText) ctx.fillText(lineText, x, y);
 }
 
 // Kecilkan ukuran font sampai teks muat di lebar yang tersedia
@@ -1466,16 +1289,7 @@ function fitFont(ctx, text, weight, family, maxSize, maxWidth) {
     size -= 2;
     ctx.font = `${weight} ${size}px ${family}`;
   }
-}
-
-// Angka acak yang selalu sama tiap kali dibuka (supaya barcode tidak berubah-ubah)
-function rng(seed) {
-  return function () {
-    seed = (seed + 0x6D2B79F5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  return size;
 }
 
 function clamp(value, min, max) {

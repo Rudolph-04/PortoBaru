@@ -794,47 +794,36 @@ a:hover .i-arrow {
 }
 
 .fallback-card {
-  width: min(280px, 70%);
-  padding: 18px;
-  background: var(--panel);
+  position: relative;
+  width: min(240px, 60%);
   border: 1px solid var(--cyan);
-  box-shadow: 0 0 24px rgba(0, 240, 255, .25);
-  clip-path: var(--chamfer);
-}
-
-.fallback-head {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  font-weight: 700;
-  font-size: .85rem;
-  color: var(--cyan);
-}
-
-.fallback-head span {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: .65rem;
-  color: var(--dim);
+  box-shadow: 0 0 24px rgba(0, 240, 255, .2);
+  overflow: hidden;
 }
 
 .fallback-card img {
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1024 / 1626;
   object-fit: cover;
 }
 
-.fallback-name {
-  margin-top: 12px;
-  font-weight: 700;
-  font-size: 1.3rem;
-  text-transform: uppercase;
+/* Gradasi gelap di bawah supaya nama terbaca, sama seperti kartu 3D */
+.fallback-card::after {
+  content: "";
+  position: absolute;
+  inset: 45% 0 0 0;
+  background: linear-gradient(transparent, rgba(5, 5, 6, .92));
 }
 
-.fallback-type {
-  font-family: var(--font-mono);
-  font-size: .72rem;
-  color: var(--magenta);
+.fallback-name {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  z-index: 1;
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: .95;
+  text-transform: uppercase;
 }
 
 /* 7. SECTION UMUM --------------------------------------------------------- */
