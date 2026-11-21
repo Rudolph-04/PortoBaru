@@ -14,6 +14,7 @@
   'use strict';
 
   var CASES = window.CASE_FILES || [];
+  var currentCase = null;
   var root = document.documentElement;
   var SVG_NS = 'http://www.w3.org/2000/svg';
   var uid = 0;
@@ -392,7 +393,40 @@
     return panels;
   }
 
-  function selectTab(tabs, panelEls, index, focus) {
+  /* ---------- Efek transisi ----------
+     glitch(): potongan-potongan panel bergeser sebentar (0,3 detik)
+     canMorph(): browser mendukung View Transitions & efek tidak dimatikan */
+  function effectsOn() {
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches && !root.classList.contains('fx-off');
+  }
+
+  function glitch(el) {
+    if (!el || !effectsOn()) return;
+    el.classList.remove('glitch');
+    void el.offsetWidth; // mulai ulang animasi
+    el.classList.add('glitch');
+  }
+
+  document.addEventListener('animationend', function (e) {
+    if (e.target.classList && e.target.classList.contains('glitch')) e.target.classList.remove('glitch');
+  });
+
+  function canMorph() {
+    return typeof document.startViewTransition === 'function' && effectsOn();
+  }
+
+  function inView(el) {
+    if (!el) return false;
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+
+  function rowFor(id) {
+    return document.querySelector('.case-row[data-case="' + id + '"]');
+  }
+
+  function selectTab(tabs, panelEls, index, focus, animate) {
+    if (animate) glitch(panelEls[index].parentElement);
     tabs.forEach(function (t, i) {
       var on = i === index;
       t.setAttribute('aria-selected', String(on));
@@ -411,6 +445,7 @@
     var c = byId(id);
     if (!c || !dialog) return;
     lastTrigger = trigger || null;
+    currentCase = id;
     dialog.textContent = '';
 
     var panels = buildPanels(c);
@@ -428,7 +463,9 @@
         'aria-controls': base + '-panel-' + p.id,
         text: p.label
       });
-      tab.addEventListener('click', function () { selectTab(tabs, panelEls, i, false); });
+      tab.addEventListener('click', function () {
+        if (tab.getAttribute('aria-selected') !== 'true') selectTab(tabs, panelEls, i, false, true);
+      });
       tabs.push(tab);
       tablist.appendChild(tab);
 
@@ -448,7 +485,7 @@
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         var next = (current + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-        selectTab(tabs, panelEls, next, true);
+        selectTab(tabs, panelEls, next, true, true);
       }
     });
 
@@ -462,7 +499,10 @@
       h('span', { class: 'dossier-next-label', text: 'Next file' }),
       h('span', { class: 'dossier-next-name', text: nextCase.no + ' ' + nextCase.name })
     ]);
-    nextBtn.addEventListener('click', function () { openDossier(nextCase.id, lastTrigger); });
+    nextBtn.addEventListener('click', function () {
+      openDossier(nextCase.id, rowFor(nextCase.id));
+      glitch(dialog.querySelector('.dossier-inner'));
+    });
 
     dialog.setAttribute('aria-labelledby', base + '-title');
     append(dialog, h('div', { class: 'dossier-inner' }, [
@@ -493,14 +533,54 @@
     closeBtn.focus();
   }
 
+  /* Buka: nama project di daftar "terbang" dan membesar jadi judul dossier.
+     Tutup: kebalikannya. Browser tanpa View Transitions tetap buka/tutup biasa. */
+  function openWithMorph(id, row) {
+    var name = row && row.querySelector('.case-name');
+    if (!canMorph() || !name || dialog.open || !inView(row)) {
+      openDossier(id, row);
+      return;
+    }
+    name.style.viewTransitionName = 'case-title';
+    var vt = document.startViewTransition(function () {
+      name.style.viewTransitionName = '';
+      openDossier(id, row);
+      var title = dialog.querySelector('.dossier-title');
+      if (title) title.style.viewTransitionName = 'case-title';
+    });
+    vt.finished.catch(function () {}).then(function () {
+      var title = dialog.querySelector('.dossier-title');
+      if (title) title.style.viewTransitionName = '';
+    });
+  }
+
   function closeDossier() {
-    if (dialog && dialog.open) dialog.close();
+    if (!dialog || !dialog.open) return;
+    var title = dialog.querySelector('.dossier-title');
+    var row = rowFor(currentCase);
+    var name = row && row.querySelector('.case-name');
+    if (!canMorph() || !title || !name || !inView(row)) {
+      dialog.close();
+      return;
+    }
+    title.style.viewTransitionName = 'case-title';
+    var vt = document.startViewTransition(function () {
+      title.style.viewTransitionName = '';
+      dialog.close();
+      name.style.viewTransitionName = 'case-title';
+    });
+    vt.finished.catch(function () {}).then(function () { name.style.viewTransitionName = ''; });
   }
 
   if (dialog && typeof dialog.showModal === 'function') {
     dialog.addEventListener('close', function () {
       root.classList.remove('dossier-open');
       if (lastTrigger) lastTrigger.focus();
+    });
+    // Esc: tutup lewat closeDossier supaya animasinya ikut jalan
+    dialog.addEventListener('cancel', function (e) {
+      e.preventDefault();
+      closeDossier();
     });
     // Klik di luar panel (latar gelap) = tutup
     dialog.addEventListener('click', function (e) {
@@ -541,12 +621,23 @@
         // Ctrl/Cmd-klik tetap membuka GitHub di tab baru seperti link biasa
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
         e.preventDefault();
-        openDossier(id, row);
+        openWithMorph(id, row);
       });
     }
   });
 
   if (rows.length) showPreview(rows[0].dataset.case);
+
+  // Dipakai js/terminal.js: perintah "projects" dan "open <nama>"
+  window.CaseFiles = {
+    list: CASES.map(function (c) { return { id: c.id, no: c.no, name: c.name, type: c.type, year: c.year }; }),
+    open: function (id) {
+      if (!dialog || typeof dialog.showModal !== 'function' || !byId(id)) return false;
+      openWithMorph(id, rowFor(id));
+      return true;
+    },
+    close: closeDossier
+  };
 
   /* ==========================================================================
      MATRIKS SKILL

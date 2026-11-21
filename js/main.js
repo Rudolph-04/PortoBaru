@@ -17,21 +17,25 @@
 
   var root = document.documentElement;
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var SCRAMBLE_CHARS = '!<>-_\\/[]{}=+*^?#01';
+  // Simbol + katakana setengah lebar, biar decode-nya terasa "sistem asing"
+  var SCRAMBLE_CHARS = '!<>-_\\/[]{}=+*^?#01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ';
 
   /* EFEK DECODE ----------------------------------------------------------
      Huruf acak berganti-ganti sebelum jadi teks asli. Dihitung pakai waktu
      (bukan jumlah frame), jadi tetap selesai tepat waktu walaupun HP lambat.
-     opts.maxStart / opts.minDur / opts.rangeDur mengatur lamanya (ms). */
+     opts.maxStart / opts.minDur / opts.rangeDur mengatur lamanya (ms).
+     opts.repeat = boleh diputar lagi (dipakai untuk efek hover). */
   function scramble(el, opts, onDone) {
     opts = opts || {};
     var finish = onDone || function () {};
-    if (!el || reduceMotion || root.classList.contains('fx-off') || el.dataset.scrambled) {
+    if (!el || reduceMotion || root.classList.contains('fx-off') ||
+        el.dataset.busy || (!opts.repeat && el.dataset.scrambled)) {
       finish();
       return;
     }
     el.dataset.scrambled = '1';
-    var finalText = el.textContent;
+    el.dataset.busy = '1';
+    var finalText = el.dataset.text || (el.dataset.text = el.textContent);
     var maxStart = opts.maxStart || 250;
     var minDur = opts.minDur || 200;
     var rangeDur = opts.rangeDur || 350;
@@ -74,6 +78,7 @@
       } else {
         el.textContent = finalText;
         el.removeAttribute('aria-label');
+        delete el.dataset.busy;
         finish();
       }
     })();
@@ -192,6 +197,8 @@
     function leave() {
       if (leaving) return;
       leaving = true;
+      // Opening cukup sekali per sesi; reload berikutnya langsung ke halaman
+      try { sessionStorage.setItem('booted', '1'); } catch (e) {}
       clearTimeout(maxTimer);
       clearInterval(clockTimer);
       document.removeEventListener('keydown', onKey);
@@ -310,12 +317,60 @@
     sectionObserver.observe(s);
   });
 
-  /* 5. REVEAL SAAT DI-SCROLL -------------------------------------------- */
+  /* 5. REVEAL SAAT DI-SCROLL --------------------------------------------
+     Tiap kata dibungkus "masker" kecil. Kata-kata di baris yang sama naik
+     bersamaan, baris berikutnya menyusul (urutan baris dihitung dari posisi
+     kata di layar, jadi tetap benar di layar sempit maupun lebar). */
+  function splitWords(el) {
+    if (el.dataset.split) return;
+    el.dataset.split = '1';
+    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (node) {
+      var frag = document.createDocumentFragment();
+      node.textContent.split(/(\s+)/).forEach(function (part) {
+        if (!part) return;
+        if (/^\s+$/.test(part)) {
+          frag.appendChild(document.createTextNode(part));
+          return;
+        }
+        var mask = document.createElement('span');
+        mask.className = 'wm';
+        var word = document.createElement('span');
+        word.className = 'wi';
+        word.textContent = part;
+        mask.appendChild(word);
+        frag.appendChild(mask);
+      });
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function lineReveal(el) {
+    if (!el || reduceMotion || root.classList.contains('fx-off')) return;
+    splitWords(el);
+    var lastTop = null;
+    var line = -1;
+    el.querySelectorAll('.wm').forEach(function (w) {
+      var top = Math.round(w.getBoundingClientRect().top);
+      if (lastTop === null || Math.abs(top - lastTop) > 4) {
+        line++;
+        lastTop = top;
+      }
+      w.style.setProperty('--line', line);
+    });
+    el.classList.add('lr-hide');
+    void el.offsetWidth; // gambar dulu keadaan tersembunyi, baru animasikan
+    requestAnimationFrame(function () { el.classList.remove('lr-hide'); });
+  }
+
   var revealObserver = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
       if (entry.isIntersecting) {
         entry.target.classList.add('is-visible');
         if (entry.target.classList.contains('section-head')) scramble(entry.target.querySelector('h2'));
+        entry.target.querySelectorAll('.section-intro, .about-lead').forEach(lineReveal);
         revealObserver.unobserve(entry.target);
       }
     });
@@ -339,6 +394,20 @@
   var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
   var ticking = false;
 
+  // Angka section besar (outline) di belakang tiap judul: lapisan paling belakang
+  var ghosts = [];
+  document.querySelectorAll('.section-head').forEach(function (head) {
+    var num = head.querySelector('.section-num');
+    var digits = num && num.textContent.replace(/\D/g, '');
+    if (!digits) return;
+    var ghost = document.createElement('span');
+    ghost.className = 'ghost-num';
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.textContent = digits;
+    head.appendChild(ghost);
+    ghosts.push({ head: head, el: ghost });
+  });
+
   if (timeline && !reduceMotion) timeline.classList.add('is-live');
 
   function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -358,6 +427,16 @@
         if (s.getBoundingClientRect().top < vh * 0.5) current = s.id;
       });
       railLinks.forEach(function (a) { a.classList.toggle('is-active', a.dataset.rail === current); });
+    }
+
+    // Angka besar bergerak lebih lambat dari teks -> kesan berlapis
+    if (!reduceMotion) {
+      ghosts.forEach(function (g) {
+        var hr = g.head.getBoundingClientRect();
+        if (hr.bottom < -200 || hr.top > vh + 200) return;
+        var off = (hr.top + hr.height / 2 - vh / 2) * 0.22;
+        g.el.style.transform = 'translate3d(0,' + off.toFixed(1) + 'px,0)';
+      });
     }
 
     if (timeline) {
@@ -429,4 +508,45 @@
 
   bindTilt(document.querySelector('.case-preview'));
   bindTilt(aboutImg, aboutPhoto);
+
+  /* c. Label menu & rail ter-decode ulang tiap disorot */
+  document.querySelectorAll('.site-nav a > span, .rail-list a > b').forEach(function (label) {
+    var link = label.parentElement;
+    ['pointerenter', 'focus'].forEach(function (type) {
+      link.addEventListener(type, function () {
+        scramble(label, { repeat: true, maxStart: 80, minDur: 120, rangeDur: 180 });
+      });
+    });
+  });
+
+  /* d. Spotlight: garis tepi menyala mengikuti kursor (kotak angka & kontak).
+        Satu listener untuk semua, termasuk yang dibuat belakangan di dossier. */
+  var spotQueued = false;
+  var spotEvent = null;
+  document.addEventListener('pointermove', function (e) {
+    if (!finePointer.matches || root.classList.contains('fx-off')) return;
+    spotEvent = e;
+    if (spotQueued) return;
+    spotQueued = true;
+    requestAnimationFrame(function () {
+      spotQueued = false;
+      var group = spotEvent.target.closest && spotEvent.target.closest('.case-facts, .contact-list');
+      if (!group) return;
+      group.querySelectorAll('.case-facts > div, .contact-list a').forEach(function (item) {
+        var r = item.getBoundingClientRect();
+        item.style.setProperty('--mx', (spotEvent.clientX - r.left).toFixed(0) + 'px');
+        item.style.setProperty('--my', (spotEvent.clientY - r.top).toFixed(0) + 'px');
+      });
+    });
+  }, { passive: true });
+
+  /* 8. EASTER EGG DI CONSOLE ------------------------------------------- */
+  try {
+    console.log(
+      '%c ACCESS GRANTED %c\nYou opened the console, so you are probably a developer.\n' +
+      'Press Ctrl+K (or the > _ button in the menu) to open the terminal. Try: help',
+      'background:#00f0ff;color:#001417;font:700 13px monospace;padding:4px 8px',
+      'color:#9aa3bf;font:12px monospace'
+    );
+  } catch (e) {}
 })();

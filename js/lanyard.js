@@ -173,7 +173,10 @@ async function init() {
   emitStatus('assets');
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Perangkat RAM kecil / prosesor sedikit: resolusi render diturunkan supaya tetap mulus
+  const lowEnd = (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+    (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowEnd ? 1.25 : 2));
   renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
@@ -652,6 +655,9 @@ async function init() {
 
   // Pindah antara layout desktop & HP -> posisi jangkar ikut pindah
   desktopQuery.addEventListener('change', resize);
+
+  // Perintah "flip" dari terminal
+  document.addEventListener('lanyard:flip', () => flipCard(1));
 
   // Keyboard: Enter/Spasi = balik kartu, panah kiri/kanan = putar, atas/bawah = jungkir
   canvas.addEventListener('keydown', (e) => {

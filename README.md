@@ -10,6 +10,7 @@ Live: https://rudolph-04.github.io/PortoBaru/
 - Kartu ID 3D di lanyard, bisa di-drag dan diputar
 - Project dalam bentuk case file (SIP Posyandu, PlayBook, SIJAPAM, Juragan Tahu): ERD, alur status, dan hak akses, diambil dari source code masing-masing
 - Matriks skill: skill mana dipakai di project mana
+- Terminal (Ctrl+K atau tombol `>_` di menu): ketik `help`, bisa buka project, pindah section, nyalain/matiin efek, sampai balik kartu ID
 
 ## Jalanin di lokal
 

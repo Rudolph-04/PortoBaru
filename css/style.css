@@ -728,11 +728,26 @@ a:hover .i-arrow {
 }
 
 .eyebrow .dot {
+  position: relative;
+  flex: none;
   width: 8px;
   height: 8px;
   background: var(--cyan);
   box-shadow: 0 0 10px var(--cyan);
-  animation: blink 1.4s steps(1) infinite;
+}
+
+/* Cincin yang memancar: tanda "tersedia / sedang buka" */
+.eyebrow .dot::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--cyan);
+  animation: status-ping 1.8s var(--ease) infinite;
+}
+
+@keyframes status-ping {
+  from { transform: scale(1); opacity: .8; }
+  to   { transform: scale(3.2); opacity: 0; }
 }
 
 .hero h1 {
@@ -1673,6 +1688,14 @@ a:hover .i-arrow {
 .fx-toggle:hover {
   color: var(--text);
   border-color: var(--text);
+}
+
+.site-nav li.fx-item {
+  gap: 8px;
+}
+
+.fx-item .fx-toggle + .fx-toggle {
+  margin-left: 0;
 }
 
 @media (max-width: 760px) {
@@ -2883,4 +2906,344 @@ html.dossier-open {
 
 .js .about-photo.is-loaded img {
   opacity: 1;
+}
+
+
+/* ==========================================================================
+   LAPISAN TEKS & SPOTLIGHT
+   ========================================================================== */
+/* Reveal per baris: tiap kata punya masker sendiri, baris naik bergiliran */
+.wm {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: .12em;
+  margin-bottom: -.12em;
+}
+
+.wi {
+  display: inline-block;
+  transition: transform .85s cubic-bezier(.65, 0, .35, 1);
+  transition-delay: calc(var(--line, 0) * 90ms + .12s);
+}
+
+.lr-hide .wi {
+  transform: translateY(115%);
+  transition: none;
+}
+
+/* Angka section besar di belakang judul (digerakkan parallax oleh main.js) */
+.section-head {
+  position: relative;
+  isolation: isolate;
+}
+
+.ghost-num {
+  position: absolute;
+  right: 0;
+  top: -.42em;
+  z-index: -1;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(6.5rem, 17vw, 14rem);
+  line-height: 1;
+  letter-spacing: -.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(0, 240, 255, .14);
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+
+.section-alt .ghost-num {
+  -webkit-text-stroke-color: rgba(255, 42, 109, .16);
+}
+
+/* Spotlight: garis tepi yang menyala di dekat kursor */
+.case-facts > div,
+.contact-list a {
+  --mx: -400px;
+  --my: -400px;
+}
+
+.case-facts > div {
+  position: relative;
+}
+
+.case-facts > div::after,
+.contact-list a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: radial-gradient(180px circle at var(--mx) var(--my), rgba(0, 240, 255, .9), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.fx-off .case-facts > div::after,
+.fx-off .contact-list a::after,
+.fx-off .ghost-num {
+  display: none;
+}
+
+@media (hover: none) {
+  .case-facts > div::after,
+  .contact-list a::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lr-hide .wi {
+    transform: none;
+  }
+
+  .eyebrow .dot::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+
+/* ==========================================================================
+   TRANSISI DOSSIER
+   ========================================================================== */
+/* Nama project terbang dari daftar ke judul dossier (View Transitions) */
+::view-transition-group(case-title) {
+  animation-duration: .6s;
+  animation-timing-function: cubic-bezier(.65, 0, .35, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .35s;
+}
+
+/* Glitch slice saat ganti tab / pindah file: 0,3 detik, lalu bersih */
+.glitch {
+  position: relative;
+  animation: glitch-slice .32s steps(1) both;
+}
+
+.glitch::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  z-index: 2;
+  background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+  pointer-events: none;
+  animation: glitch-scan .32s linear both;
+}
+
+@keyframes glitch-slice {
+  0%   { clip-path: inset(0 0 72% 0);  transform: translateX(-8px); }
+  15%  { clip-path: inset(40% 0 30% 0); transform: translateX(7px); }
+  30%  { clip-path: inset(10% 0 55% 0); transform: translateX(-5px); filter: hue-rotate(140deg); }
+  45%  { clip-path: inset(62% 0 8% 0);  transform: translateX(4px); filter: none; }
+  60%  { clip-path: inset(25% 0 40% 0); transform: translateX(-3px); }
+  75%  { clip-path: inset(0 0 20% 0);   transform: translateX(2px); }
+  100% { clip-path: inset(0 0 0 0);     transform: none; }
+}
+
+@keyframes glitch-scan {
+  from { top: 0; }
+  to   { top: 100%; }
+}
+
+.fx-off .glitch,
+.fx-off .glitch::before {
+  animation: none;
+}
+
+.fx-off .glitch::before {
+  display: none;
+}
+
+
+/* ==========================================================================
+   TERMINAL
+   ========================================================================== */
+.term-toggle {
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+html.term-open {
+  overflow: hidden;
+}
+
+.term {
+  width: min(760px, calc(100% - 32px));
+  max-width: none;
+  height: min(480px, calc(100vh - 64px));
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--cyan);
+  background: #05050a;
+  color: var(--text);
+  box-shadow: 0 0 0 1px rgba(0, 240, 255, .15), 0 30px 80px -20px rgba(0, 240, 255, .25);
+  overflow: hidden;
+}
+
+.term[open] {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  animation: term-in .28s var(--ease);
+}
+
+.term::backdrop {
+  background: rgba(3, 3, 8, .72);
+}
+
+@keyframes term-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.term-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-2);
+  background: rgba(0, 240, 255, .06);
+}
+
+.term-title {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.term-close {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .2s, border-color .2s, scale .15s var(--ease);
+}
+
+.term-close:hover,
+.term-close:focus-visible {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.term-close:active {
+  scale: .94;
+}
+
+.term-out {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px 6px;
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  line-height: 1.6;
+}
+
+.term-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.term-echo {
+  margin-top: 10px;
+  color: var(--text);
+}
+
+.term-prompt {
+  color: var(--cyan);
+}
+
+.term-key {
+  color: var(--yellow);
+  white-space: pre;
+}
+
+.term-dim {
+  color: var(--dim);
+}
+
+.term-ok {
+  color: var(--cyan);
+}
+
+.term-err {
+  color: var(--magenta);
+}
+
+.term-head {
+  margin-top: 6px;
+  color: var(--magenta);
+  font-weight: 700;
+}
+
+.term-line a {
+  color: var(--cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.term-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: .85rem;
+}
+
+.term-form .term-prompt {
+  flex: none;
+}
+
+.term-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  caret-color: var(--cyan);
+}
+
+@media (max-width: 600px) {
+  .term {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border: 0;
+  }
+
+  .term-out,
+  .term-form {
+    font-size: .8rem;
+  }
+
+  .term-form .term-prompt {
+    display: none;
+  }
+
+  .term-input {
+    border-bottom: 1px solid var(--line-2);
+  }
 }
