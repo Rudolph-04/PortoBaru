@@ -7,6 +7,7 @@
    4. Link navigasi aktif mengikuti section yang sedang dilihat
    5. Animasi muncul saat di-scroll (reveal) + judul ter-"decode"
    6. Progres scroll: garis header, rail HUD, timeline Process
+   7. Micro interaction: kartu miring mengikuti kursor, skeleton foto
 
    Kartu ID 3D ada di file terpisah: js/lanyard.js
    ========================================================================== */
@@ -383,4 +384,49 @@
   window.addEventListener('scroll', requestTick, { passive: true });
   window.addEventListener('resize', requestTick);
   onScroll();
+
+  /* 7. MICRO INTERACTION -------------------------------------------------
+     a. Foto About: skeleton shimmer sampai foto selesai dimuat
+     b. Panel pratinjau project & foto About miring sedikit mengikuti kursor
+        (hanya mouse, bukan layar sentuh; mati kalau FX off / reduced motion) */
+  var aboutPhoto = document.querySelector('.about-photo');
+  var aboutImg = aboutPhoto && aboutPhoto.querySelector('img');
+  if (aboutImg) {
+    var markLoaded = function () { aboutPhoto.classList.add('is-loaded'); };
+    if (aboutImg.complete && aboutImg.naturalWidth) markLoaded();
+    else {
+      aboutImg.addEventListener('load', markLoaded);
+      aboutImg.addEventListener('error', markLoaded); // gagal dimuat: jangan shimmer selamanya
+    }
+  }
+
+  var MAX_TILT = 5; // derajat
+  var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+  function bindTilt(el, surface) {
+    if (!el) return;
+    surface = surface || el;
+    surface.addEventListener('pointermove', function (e) {
+      if (!finePointer.matches || reduceMotion || root.classList.contains('fx-off')) return;
+      var r = surface.getBoundingClientRect();
+      var px = (e.clientX - r.left) / r.width;   // 0..1
+      var py = (e.clientY - r.top) / r.height;   // 0..1
+      var dx = px - 0.5;
+      var dy = py - 0.5;
+      // Sumbu putar tegak lurus arah kursor dari tengah; besar sudut = jarak dari tengah
+      var len = Math.hypot(dx, dy) || 1e-6;
+      el.style.setProperty('--tx', (-dy / len).toFixed(3));
+      el.style.setProperty('--ty', (dx / len).toFixed(3));
+      el.style.setProperty('--ta', (Math.min(len * 2, 1) * MAX_TILT).toFixed(2) + 'deg');
+      el.style.setProperty('--gx', (px * 100).toFixed(1) + '%');
+      el.style.setProperty('--gy', (py * 100).toFixed(1) + '%');
+      el.classList.add('is-tilting');
+    });
+    surface.addEventListener('pointerleave', function () {
+      el.classList.remove('is-tilting');
+    });
+  }
+
+  bindTilt(document.querySelector('.case-preview'));
+  bindTilt(aboutImg, aboutPhoto);
 })();
