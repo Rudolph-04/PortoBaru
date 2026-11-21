@@ -371,6 +371,7 @@
       if (entry.isIntersecting) {
         entry.target.classList.add('is-visible');
         if (entry.target.classList.contains('section-head')) scramble(entry.target.querySelector('h2'));
+        if (entry.target.classList.contains('statement')) lineReveal(entry.target);
         entry.target.querySelectorAll('.section-intro, .about-lead').forEach(lineReveal);
         revealObserver.unobserve(entry.target);
       }
@@ -395,19 +396,6 @@
   var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
   var ticking = false;
 
-  // Angka section besar (outline) di belakang tiap judul: lapisan paling belakang
-  var ghosts = [];
-  document.querySelectorAll('.section-head').forEach(function (head) {
-    var num = head.querySelector('.section-num');
-    var digits = num && num.textContent.replace(/\D/g, '');
-    if (!digits) return;
-    var ghost = document.createElement('span');
-    ghost.className = 'ghost-num';
-    ghost.setAttribute('aria-hidden', 'true');
-    ghost.textContent = digits;
-    head.appendChild(ghost);
-    ghosts.push({ head: head, el: ghost });
-  });
 
   if (timeline && !reduceMotion) timeline.classList.add('is-live');
 
@@ -430,25 +418,14 @@
       railLinks.forEach(function (a) { a.classList.toggle('is-active', a.dataset.rail === current); });
     }
 
-    // Angka besar bergerak lebih lambat dari teks -> kesan berlapis
-    if (!reduceMotion) {
-      ghosts.forEach(function (g) {
-        var hr = g.head.getBoundingClientRect();
-        if (hr.bottom < -200 || hr.top > vh + 200) return;
-        var off = (hr.top + hr.height / 2 - vh / 2) * 0.22;
-        g.el.style.transform = 'translate3d(0,' + off.toFixed(1) + 'px,0)';
-      });
-    }
-
     if (timeline) {
       // 0 saat bagian atas timeline di 80% tinggi layar, 1 saat bagian bawahnya di 55%
       var r = timeline.getBoundingClientRect();
       var tp = reduceMotion ? 1 : clamp01((vh * 0.8 - r.top) / (r.height + vh * 0.25));
       timeline.style.setProperty('--progress', tp.toFixed(4));
-      var vertical = window.matchMedia('(max-width: 960px)').matches;
-      steps.forEach(function (step, i) {
-        // Titik langkah ke-i ada di i/n sepanjang garis (horizontal) atau di posisi atasnya (vertikal)
-        var at = vertical ? (step.offsetTop / r.height) : (i / steps.length);
+      steps.forEach(function (step) {
+        // Titik tiap langkah ada di posisi atas langkah itu sepanjang garis vertikal
+        var at = step.offsetTop / r.height;
         step.classList.toggle('is-on', tp > at + 0.02 || tp >= 1);
       });
     }

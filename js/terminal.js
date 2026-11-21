@@ -135,7 +135,7 @@
       desc: 'list case files',
       run: function () {
         var list = (window.CaseFiles && window.CaseFiles.list) || [];
-        table(list.map(function (c) { return [c.no + '  ' + c.name, c.type + ' · ' + c.year]; }));
+        table(list.map(function (c) { return [c.no + '  ' + c.name, c.type + ', ' + c.year]; }));
         line('Open one with: open 2   or   open playbook', 'term-dim');
       }
     },

@@ -61,7 +61,6 @@
   /* ---------- Peta sistem kecil (aktor -> modul) ---------- */
   function systemMap(c) {
     return h('figure', { class: 'sysmap', 'aria-label': 'System map: ' + c.actors.join(', ') + ' use ' + c.modules.join(', ') }, [
-      h('figcaption', { text: 'Sys.map' }),
       h('div', { class: 'sysmap-row actors' }, c.actors.map(function (a) {
         return h('span', { class: 'node' + (/AI$/.test(a) ? ' node-ext' : ''), text: a });
       })),
@@ -351,7 +350,7 @@
             h('h4', { class: 'dossier-sub', text: 'Key features' }),
             h('ul', { class: 'project-points' }, c.features.map(function (f) { return h('li', { text: f }); })),
             h('h4', { class: 'dossier-sub', text: 'Stack' }),
-            h('p', { class: 'project-stack', text: c.stack.join(' · ') })
+            h('p', { class: 'project-stack', text: c.stack.join(', ') })
           ]),
           systemMap(c)
         ])
@@ -363,7 +362,7 @@
         id: 'data',
         label: 'Data model',
         body: [
-          h('p', { class: 'dossier-sub-lead', text: c.erd.tables.length + ' tables · ' + c.erd.links.length + ' relations' + (c.erd.note ? ' — ' + c.erd.note : '') }),
+          h('p', { class: 'dossier-sub-lead', text: c.erd.tables.length + ' tables and ' + c.erd.links.length + ' relations.' + (c.erd.note ? ' ' + c.erd.note : '') }),
           h('div', { class: 'diagram-scroll' }, buildErd(c.erd, 'Entity relationship diagram of ' + c.name))
         ]
       });
@@ -517,7 +516,7 @@
     append(dialog, h('div', { class: 'dossier-inner' }, [
       h('header', { class: 'dossier-head' }, [
         h('div', null, [
-          h('p', { class: 'dossier-meta', text: 'Case file ' + c.no + ' // ' + c.type + ' // ' + c.year }),
+          h('p', { class: 'dossier-meta', text: c.type + ', ' + c.year }),
           h('h3', { class: 'dossier-title', id: base + '-title', text: c.name })
         ]),
         closeBtn
@@ -526,8 +525,7 @@
       h('div', { class: 'dossier-body' }, panelEls),
       h('footer', { class: 'dossier-foot' }, [
         h('a', { class: 'project-link', href: c.repo, target: '_blank', rel: 'noopener' }, [
-          'Source on GitHub ',
-          s('svg', { class: 'i-arrow', viewBox: '0 0 16 16', 'aria-hidden': 'true' }, s('path', { d: 'M4.5 11.5l7-7M5.5 4.5h6v6' }))
+          'Source on GitHub'
         ]),
         nextBtn
       ])
@@ -613,7 +611,6 @@
     preview.classList.remove('is-in');
     preview.textContent = '';
     append(preview, [
-      h('p', { class: 'case-preview-meta', text: 'File ' + c.no + ' // preview' }),
       systemMap(c),
       factsRow(c),
       h('p', { class: 'case-preview-hint', text: 'Click to open the full file' })
@@ -657,7 +654,7 @@
     var table = h('table', { class: 'skill-matrix' }, [
       h('caption', { class: 'sr-only', text: 'Skills and the projects that use them' }),
       h('thead', null, h('tr', null, [h('th', { scope: 'col', text: 'Skill' })].concat(matrix.projects.map(function (p, i) {
-        return h('th', { scope: 'col' }, [h('span', { class: 'col-no', text: '0' + (i + 1) }), h('span', { class: 'col-name', text: p })]);
+        return h('th', { scope: 'col' }, h('span', { class: 'col-name', text: p }));
       }))))
     ]);
     var rowNo = 0; // dipakai untuk jeda animasi: tanda muncul baris demi baris

@@ -192,7 +192,7 @@ window.CASE_FILES = [
     no: '04',
     name: 'Juragan Tahu',
     year: '2026',
-    type: 'Roblox game · in progress',
+    type: 'Roblox game, in progress',
     repo: 'https://github.com/Rudolph-04/RObelox',
     summary: 'A Roblox game about running a fried-tofu stall. The server decides frying quality and payouts, so a player cannot cheat from their own client.',
     facts: [['13', 'Luau scripts'], ['4', 'quality grades'], ['0', 'trust in the client']],
@@ -214,7 +214,7 @@ window.CASE_FILES = [
         ['Client', 'Shows the doneness bar'],
         ['Client', 'Player taps "Lift"'],
         ['Server', 'Measures elapsed time itself'],
-        ['Server', 'Grades it: raw · ok · perfect · burnt'],
+        ['Server', 'Grades it: raw, ok, perfect, or burnt'],
         ['Server', 'Pays the player']
       ]
     },
@@ -241,15 +241,15 @@ window.SKILL_MATRIX = {
       ['Server-authoritative logic', [0, 1, 0, 1]]
     ]],
     ['Build', [
-      ['PHP · Laravel', [1, 0, 0, 0]],
-      ['PHP · native REST API', [0, 1, 0, 0]],
-      ['Flutter · Dart · GetX', [0, 1, 0, 0]],
-      ['React · TypeScript', [0, 0, 1, 0]],
+      ['Laravel (PHP)', [1, 0, 0, 0]],
+      ['Native PHP REST API', [0, 1, 0, 0]],
+      ['Flutter and Dart, with GetX', [0, 1, 0, 0]],
+      ['React and TypeScript', [0, 0, 1, 0]],
       ['Tailwind CSS', [1, 0, 1, 0]],
-      ['Luau · Roblox', [0, 0, 0, 1]]
+      ['Luau for Roblox', [0, 0, 0, 1]]
     ]],
     ['Data & integration', [
-      ['SQL (MySQL · SQLite)', [1, 1, 0, 0]],
+      ['SQL: MySQL and SQLite', [1, 1, 0, 0]],
       ['Charts (Recharts)', [0, 0, 1, 0]],
       ['AI API (Gemini)', [0, 0, 1, 0]]
     ]]
