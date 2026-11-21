@@ -3247,3 +3247,204 @@ html.term-open {
     border-bottom: 1px solid var(--line-2);
   }
 }
+
+
+/* ==========================================================================
+   LAPISAN HIDUP (js/alive.js)
+   ========================================================================== */
+/* Grid sinyal: canvas di belakang semua konten */
+.field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Canvas menggantikan grid CSS; kalau FX dimatikan, grid CSS kembali */
+html.has-field:not(.fx-off) body {
+  background-image: none;
+}
+
+html.has-field .section-alt {
+  background: rgba(9, 9, 15, .55);
+}
+
+.fx-off .field {
+  display: none;
+}
+
+/* Judul section miring sedikit mengikuti kecepatan scroll */
+.js .section-head h2 {
+  transform: skewY(var(--skew, 0deg));
+  transform-origin: left center;
+}
+
+/* Pita teks berjalan */
+.ticker-wrap {
+  overflow: hidden;
+  padding-block: clamp(26px, 5vw, 56px);
+}
+
+.ticker {
+  width: 112%;
+  margin-left: -6%;
+  transform: rotate(-2deg);
+  border-block: 1px solid var(--line-2);
+  background: rgba(6, 6, 11, .85);
+}
+
+.ticker.alt {
+  transform: rotate(1.6deg);
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.ticker-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.ticker-track span {
+  padding: 14px 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 2.2vw, 1.55rem);
+  line-height: 1;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.ticker-track span::after {
+  content: "//";
+  margin: 0 .9em;
+  color: var(--magenta);
+}
+
+.ticker.alt .ticker-track span {
+  color: var(--ink);
+}
+
+.ticker.alt .ticker-track span::after {
+  color: rgba(0, 20, 23, .45);
+}
+
+/* Log sistem: satu baris status di header, antara logo dan menu */
+.syslog {
+  flex: 1;
+  min-width: 0;
+  margin: 0 28px;
+  font-family: var(--font-mono);
+  font-size: .66rem;
+  letter-spacing: .04em;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.syslog p {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: opacity .8s;
+}
+
+.syslog p.is-old {
+  opacity: .4;
+}
+
+.syslog time {
+  margin-right: 8px;
+  color: var(--cyan);
+}
+
+.syslog p.k-glitch span,
+.syslog p.k-flip span {
+  color: var(--magenta);
+}
+
+@media (max-width: 1199px) {
+  .syslog {
+    display: none;
+  }
+}
+
+/* Kursor HUD (desktop) */
+html.has-cursor,
+html.has-cursor * {
+  cursor: none !important;
+}
+
+.cur-dot,
+.cur-ring,
+.cur-label {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 900;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+html.has-cursor .cur-dot,
+html.has-cursor .cur-ring {
+  opacity: 1;
+}
+
+.cur-dot {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+.cur-ring {
+  width: 34px;
+  height: 34px;
+  transition: opacity .2s, scale .15s var(--ease);
+}
+
+.cur-ring.is-down {
+  scale: .85;
+}
+
+.cur-ring i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--cyan);
+  transition: border-color .2s;
+}
+
+.cur-ring i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.cur-ring i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.cur-ring i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.cur-ring i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+
+.cur-ring.is-lock i {
+  border-color: var(--magenta);
+}
+
+.cur-label {
+  padding: 3px 7px;
+  background: var(--cyan);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: .62rem;
+  letter-spacing: .12em;
+  white-space: nowrap;
+}
+
+html.has-cursor .cur-label.is-on {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .section-head h2 {
+    transform: none;
+  }
+}

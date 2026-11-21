@@ -109,6 +109,7 @@
           <li><a href="#contact"><i>05</i><span>Contact</span></a></li>
           <li class="fx-item">
             <button class="fx-toggle term-toggle" id="term-toggle" type="button" aria-haspopup="dialog" title="Open terminal (Ctrl+K)"><span aria-hidden="true">&gt;_</span><b class="sr-only">Open terminal</b></button>
+            <button class="fx-toggle" id="snd-toggle" type="button" aria-pressed="false" title="Turn interface sounds on or off">SND <span>off</span></button>
             <button class="fx-toggle" id="fx-toggle" type="button" aria-pressed="true" title="Turn visual effects on or off">FX <span>on</span></button>
           </li>
         </ul>
@@ -181,6 +182,15 @@
         </div>
       </div>
     </section>
+
+    <!-- Pita teks berjalan (dekorasi; kecepatannya diatur js/alive.js) -->
+    <div class="ticker-wrap" aria-hidden="true">
+      <div class="ticker">
+        <div class="ticker-track">
+          <span>Open to internships</span><span>System analysis</span><span>ERD &amp; status flows</span><span>Role-based access</span><span>Laravel</span><span>Flutter</span><span>React</span><span>Semester 06</span>
+        </div>
+      </div>
+    </div>
 
     <!-- ============ ABOUT ============ -->
     <section class="section" id="about" aria-labelledby="about-title">
@@ -364,6 +374,14 @@
       </div>
     </section>
 
+    <div class="ticker-wrap" aria-hidden="true">
+      <div class="ticker alt">
+        <div class="ticker-track">
+          <span>Let's build something useful</span><span>Internship</span><span>Freelance</span><span>Collaboration</span><span>Fastest on LinkedIn &amp; Instagram</span>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ CONTACT ============ -->
     <section class="section contact" id="contact" aria-labelledby="contact-title">
       <div class="container">
@@ -443,6 +461,7 @@
   <script src="js/case-data.js" defer></script>
   <script src="js/case-files.js" defer></script>
   <script src="js/terminal.js" defer></script>
+  <script src="js/alive.js" defer></script>
   <script type="module" src="js/lanyard.js"></script>
 </body>
 </html>

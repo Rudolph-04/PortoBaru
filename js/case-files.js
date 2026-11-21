@@ -421,12 +421,20 @@
     return r.bottom > 0 && r.top < window.innerHeight;
   }
 
+  // Kirim catatan ke log sistem (ditampilkan oleh js/alive.js)
+  function siteLog(msg, kind) {
+    document.dispatchEvent(new CustomEvent('site:log', { detail: { msg: msg, kind: kind } }));
+  }
+
   function rowFor(id) {
     return document.querySelector('.case-row[data-case="' + id + '"]');
   }
 
   function selectTab(tabs, panelEls, index, focus, animate) {
-    if (animate) glitch(panelEls[index].parentElement);
+    if (animate) {
+      glitch(panelEls[index].parentElement);
+      siteLog('reading ' + currentCase + '/' + tabs[index].textContent.toLowerCase().replace(/\s+/g, '-'), 'glitch');
+    }
     tabs.forEach(function (t, i) {
       var on = i === index;
       t.setAttribute('aria-selected', String(on));
@@ -446,6 +454,7 @@
     if (!c || !dialog) return;
     lastTrigger = trigger || null;
     currentCase = id;
+    siteLog('decrypting case file ' + c.no + ' // ' + c.name, 'open');
     dialog.textContent = '';
 
     var panels = buildPanels(c);

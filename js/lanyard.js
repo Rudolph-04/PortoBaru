@@ -246,6 +246,7 @@ async function init() {
   const instVel = new THREE.Vector3();
   let lastPointerTime = 0;
   let dragging = false;
+  let lastGrabLog = 0;
 
   let started = false;
   let interacted = false;
@@ -324,6 +325,8 @@ async function init() {
   function flipCard(dir) {
     if (!started) return;
     twistRest += Math.PI * dir;
+    const backSide = Math.round(twistRest / Math.PI) % 2 !== 0;
+    siteLog(backSide ? 'id card flipped // back side' : 'id card flipped // front side', 'flip');
     flipping = true;
     flipUntil = performance.now() + 2000;
     hideHint();
@@ -520,7 +523,11 @@ async function init() {
     pointerVel.set(0, 0, 0);
 
     dragging = true;
-    flipping = false; // dipegang -> pegas flip berhenti, kartu ikut tangan
+    flipping = false;
+    if (performance.now() - lastGrabLog > 5000) {
+      lastGrabLog = performance.now();
+      siteLog('id card grabbed');
+    } // dipegang -> pegas flip berhenti, kartu ikut tangan
     hero.classList.add('is-grabbing');
     hideHint();
     updateRunning();
@@ -561,7 +568,10 @@ async function init() {
     // "Lemparan": kecepatan geser saat dilepas jadi putaran kartu
     twist(clamp(pointerVel.x * 0.006, -0.06, 0.06), clamp(-pointerVel.y * 0.004, -0.04, 0.04));
     // Dilempar kencang -> kartu "kesetrum"
-    if (pointerVel.length() > 9) overload(performance.now() / 1000);
+    if (pointerVel.length() > 9) {
+      overload(performance.now() / 1000);
+      siteLog('card overload // signal unstable', 'glitch');
+    }
     pointerVel.set(0, 0, 0);
   }
 
@@ -1324,6 +1334,11 @@ function drawStrap() {
 /* ==========================================================================
    FUNGSI BANTU
    ========================================================================== */
+// Catatan untuk log sistem di pojok layar (ditampilkan oleh js/alive.js)
+function siteLog(msg, kind) {
+  document.dispatchEvent(new CustomEvent('site:log', { detail: { msg, kind } }));
+}
+
 function emitStatus(step) {
   document.dispatchEvent(new CustomEvent('lanyard:status', { detail: { step } }));
 }

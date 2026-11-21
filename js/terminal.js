@@ -288,6 +288,7 @@
     if (dialog.open) { input.focus(); return; }
     root.classList.add('term-open');
     dialog.showModal();
+    document.dispatchEvent(new CustomEvent('site:log', { detail: { msg: 'terminal session opened', kind: 'open' } }));
     if (!greeted) {
       greeted = true;
       line('AGHASHA//OS  v6.0  (semester 6 build)', 'term-head');

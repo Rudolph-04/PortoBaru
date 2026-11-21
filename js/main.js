@@ -287,6 +287,7 @@
       root.classList.toggle('fx-off', off);
       try { localStorage.setItem('fx', off ? 'off' : 'on'); } catch (e) {}
       renderFx();
+      document.dispatchEvent(new CustomEvent('site:log', { detail: { msg: 'visual fx ' + (off ? 'off' : 'on') } }));
     });
   }
 
